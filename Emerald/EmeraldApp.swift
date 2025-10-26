@@ -15,6 +15,20 @@ struct EmeraldApp: App {
     @StateObject private var emulatorState = EmulatorState()
     @StateObject private var romLibrary = ROMLibrary()
     @StateObject private var settings = EmulatorSettings()
+    @Environment(\.openWindow) private var openWindow
+    
+    init() {
+        // Listen for ROM Library open requests
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("OpenROMLibrary"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                NSApp.sendAction(Selector(("openROMLibraryWindow:")), to: nil, from: nil)
+            }
+        }
+    }
     
     var body: some Scene {
         // Main emulator window

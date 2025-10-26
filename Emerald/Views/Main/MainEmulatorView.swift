@@ -133,19 +133,34 @@ struct MainEmulatorView: View {
     }
     
     private func loadROM(from url: URL) {
-        Task {
+        Task { @MainActor in
             do {
-                // First try to add to library if not already there
-                if !romLibrary.roms.contains(where: { $0.url == url }) {
-                    try await romLibrary.addROM(from: url)
+                await LogManager.shared.log("🎮 Loading ROM from: \(url.lastPathComponent)", category: "ROM", level: .info)
+                
+                let filename = url.lastPathComponent
+                
+                // Check if ROM already exists in library
+                if let existingROM = romLibrary.roms.first(where: { $0.url.lastPathComponent == filename }) {
+                    await LogManager.shared.log("ℹ️ ROM already in library, loading existing copy", category: "ROM", level: .info)
+                    await LogManager.shared.log("▶️ Starting emulation for: \(existingROM.title)", category: "System", level: .info)
+                    try await emulatorState.loadROM(existingROM)
+                    emulatorState.startEmulation()
+                    return
                 }
                 
-                // Find the ROM in the library
-                if let rom = romLibrary.roms.first(where: { $0.url == url }) {
+                // Add new ROM to library
+                try await romLibrary.addROM(from: url)
+                
+                // Get the last added ROM (the one we just added)
+                if let rom = romLibrary.roms.last {
+                    await LogManager.shared.log("▶️ Starting emulation for: \(rom.title)", category: "System", level: .info)
                     try await emulatorState.loadROM(rom)
                     emulatorState.startEmulation()
+                } else {
+                    await LogManager.shared.log("⚠️ ROM not found in library after adding", category: "ROM", level: .warning)
                 }
             } catch {
+                await LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
                 print("Failed to load ROM: \(error)")
             }
         }
@@ -153,6 +168,9 @@ struct MainEmulatorView: View {
 }
 
 struct WelcomeView: View {
+    @EnvironmentObject private var romLibrary: ROMLibrary
+    @Environment(\.openWindow) private var openWindow
+    
     var body: some View {
         VStack(spacing: 24) {
             Image(systemName: "gamecontroller.fill")
@@ -164,22 +182,27 @@ struct WelcomeView: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
-                Text("Drop a ROM file here or use File > Open ROM...")
-                    .font(.title3)
-                    .foregroundColor(.secondary)
+                if romLibrary.roms.isEmpty {
+                    Text("Drop a ROM file here or use File > Open ROM...")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("You have \(romLibrary.roms.count) ROM(s) in your library")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                }
             }
             
             HStack(spacing: 16) {
                 Button("Open ROM Library") {
                     // Open ROM Library window
-                    if let url = URL(string: "emerald://library") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    openWindow(id: "library")
                 }
                 .keyboardShortcut("l", modifiers: .command)
                 
                 Button("Open ROM...") {
-                    // This will trigger the file picker
+                    // Trigger Open ROM menu command
+                    NSApp.sendAction(Selector(("openDocument:")), to: nil, from: nil)
                 }
                 .keyboardShortcut("o", modifiers: .command)
             }

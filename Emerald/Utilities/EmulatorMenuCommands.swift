@@ -25,11 +25,30 @@ struct EmulatorMenuCommands: Commands {
                 panel.allowsMultipleSelection = false
                 
                 if panel.runModal() == .OK, let url = panel.url {
-                    Task {
-                        try? await romLibrary?.addROM(from: url)
-                        if let rom = romLibrary?.roms.first(where: { $0.url == url }) {
-                            try? await emulatorState?.loadROM(rom)
-                            emulatorState?.startEmulation()
+                    Task { @MainActor in
+                        do {
+                            let filename = url.lastPathComponent
+                            
+                            // Check if ROM already exists in library
+                            if let existingROM = romLibrary?.roms.first(where: { $0.url.lastPathComponent == filename }) {
+                                await LogManager.shared.log("ℹ️ ROM already in library, loading existing copy", category: "ROM", level: .info)
+                                await LogManager.shared.log("▶️ Starting emulation for: \(existingROM.title)", category: "System", level: .info)
+                                try await emulatorState?.loadROM(existingROM)
+                                emulatorState?.startEmulation()
+                                return
+                            }
+                            
+                            // Add ROM to library
+                            try await romLibrary?.addROM(from: url)
+                            
+                            // Get the last added ROM (the one we just added)
+                            if let rom = romLibrary?.roms.last {
+                                await LogManager.shared.log("▶️ Starting emulation for: \(rom.title)", category: "System", level: .info)
+                                try await emulatorState?.loadROM(rom)
+                                emulatorState?.startEmulation()
+                            }
+                        } catch {
+                            await LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
                         }
                     }
                 }
@@ -37,7 +56,8 @@ struct EmulatorMenuCommands: Commands {
             .keyboardShortcut("o", modifiers: .command)
             
             Button("Show ROM Library...") {
-                NSApp.sendAction(#selector(AppDelegate.showROMLibrary), to: nil, from: nil)
+                // Request opening the ROM Library window
+                NotificationCenter.default.post(name: NSNotification.Name("OpenROMLibrary"), object: nil)
             }
             .keyboardShortcut("l", modifiers: .command)
             
