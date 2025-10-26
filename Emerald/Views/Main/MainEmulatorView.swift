@@ -12,12 +12,28 @@ struct MainEmulatorView: View {
     @EnvironmentObject private var emulatorState: EmulatorState
     @EnvironmentObject private var romLibrary: ROMLibrary
     @EnvironmentObject private var settings: EmulatorSettings
+    @StateObject private var logManager = LogManager.shared
     
     @State private var showingFilePicker = false
     @State private var showingROMLibrary = false
     @State private var dragOver = false
     
     var body: some View {
+        VStack(spacing: 0) {
+            // Main emulator area
+            emulatorContent
+            
+            // Log console (toggleable)
+            if logManager.isVisible {
+                LogConsoleView()
+            }
+        }
+        .onDrop(of: [.fileURL], isTargeted: $dragOver) { providers in
+            handleDrop(providers: providers)
+        }
+    }
+    
+    var emulatorContent: some View {
         GeometryReader { geometry in
             ZStack {
                 // Background

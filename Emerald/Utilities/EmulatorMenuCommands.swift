@@ -239,6 +239,28 @@ struct EmulatorMenuCommands: Commands {
             }
             .keyboardShortcut("d", modifiers: [.command, .shift])
         }
+        
+        // Debug Menu
+        CommandMenu("Debug") {
+            Button("Toggle Log Console") {
+                Task { @MainActor in
+                    LogManager.shared.toggle()
+                }
+            }
+            .keyboardShortcut("`", modifiers: .command)
+            
+            Button("Clear Logs") {
+                Task { @MainActor in
+                    LogManager.shared.clear()
+                }
+            }
+            
+            Divider()
+            
+            Button("Show FPS") {
+                // Toggle FPS display
+            }
+        }
     }
 }
 

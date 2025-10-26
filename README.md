@@ -41,6 +41,7 @@ Emerald is a Game Boy Advance emulator written from scratch in Swift, leveraging
 - 🪟 Native macOS windows (main emulator, ROM library, settings)
 - 🎨 Metal-accelerated rendering with 5 shader effects
 - 📊 Real-time FPS counter
+- 🐛 **Debug log console** (⌘` to toggle)
 - 🎚️ Comprehensive settings panel
 - 🖱️ Drag & drop ROM loading
 
@@ -134,6 +135,7 @@ Emerald is a Game Boy Advance emulator written from scratch in Swift, leveraging
 ## 📚 Documentation
 
 - **[Docs/PROJECT_STATUS.md](Docs/PROJECT_STATUS.md)** - Detailed project status
+- **[Docs/LOG_CONSOLE_GUIDE.md](Docs/LOG_CONSOLE_GUIDE.md)** - Using the debug console
 - **[Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md)** - Code architecture
 - **[Docs/START_HERE.md](Docs/START_HERE.md)** - Quick start guide
 - **[Docs/XCODE_TUTORIAL.md](Docs/XCODE_TUTORIAL.md)** - Building guide

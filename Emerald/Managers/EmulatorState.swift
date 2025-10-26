@@ -64,31 +64,73 @@ final class EmulatorState: ObservableObject {
     // MARK: - Public Interface
     
     func loadROM(_ rom: GBARom) async throws {
+        let log = LogManager.shared
+        
+        await log.log("🎮 Starting ROM load process...", category: "ROM", level: .info)
+        await log.log("ROM: \(rom.title)", category: "ROM", level: .info)
+        await log.log("File: \(rom.url.lastPathComponent)", category: "ROM", level: .info)
+        
         logger.info("Loading ROM: \(rom.title)")
         
-        guard let romData = try? Data(contentsOf: rom.url) else {
+        // Check if file exists
+        guard FileManager.default.fileExists(atPath: rom.url.path) else {
+            await log.log("❌ ROM file not found at path!", category: "ROM", level: .error)
             throw EmulatorError.failedToLoadROM
         }
+        await log.log("✅ ROM file found", category: "ROM", level: .success)
+        
+        // Read ROM data
+        guard let romData = try? Data(contentsOf: rom.url) else {
+            await log.log("❌ Failed to read ROM data", category: "ROM", level: .error)
+            throw EmulatorError.failedToLoadROM
+        }
+        await log.log("✅ ROM data read: \(romData.count) bytes (\(romData.count / 1024 / 1024) MB)", category: "ROM", level: .success)
         
         // Stop current emulation
+        await log.log("🛑 Stopping current emulation", category: "System", level: .info)
         stopEmulation()
         
         // Create new cartridge
-        cartridge = try GBACartridge(data: romData, saveURL: rom.saveURL)
+        await log.log("📦 Creating cartridge...", category: "ROM", level: .info)
+        do {
+            cartridge = try GBACartridge(data: romData, saveURL: rom.saveURL)
+            await log.log("✅ Cartridge created successfully", category: "ROM", level: .success)
+        } catch {
+            await log.log("❌ Failed to create cartridge: \(error.localizedDescription)", category: "ROM", level: .error)
+            throw error
+        }
         
         // Initialize components with new cartridge
+        await log.log("🔧 Initializing emulator components...", category: "System", level: .info)
         try await initializeWithCartridge(cartridge!)
+        await log.log("✅ Components initialized", category: "System", level: .success)
         
         currentROM = rom
+        await log.log("🎉 ROM loaded successfully!", category: "ROM", level: .success)
+        await log.log("Ready to start emulation", category: "System", level: .info)
+        
         logger.info("Successfully loaded ROM")
     }
     
     func startEmulation() {
-        guard let cartridge = cartridge, !isRunning else { return }
+        guard let cartridge = cartridge, !isRunning else { 
+            Task {
+                await LogManager.shared.log("⚠️ Cannot start: No cartridge or already running", category: "System", level: .warning)
+            }
+            return
+        }
+        
+        Task {
+            await LogManager.shared.log("▶️ Starting emulation", category: "System", level: .info)
+        }
         
         logger.info("Starting emulation")
         isRunning = true
         isPaused = false
+        
+        Task {
+            await LogManager.shared.log("✅ Emulation started (60 FPS target)", category: "System", level: .success)
+        }
         
         emulationTask = Task {
             await runEmulationLoop()
@@ -203,17 +245,25 @@ final class EmulatorState: ObservableObject {
     }
     
     private func initializeWithCartridge(_ cartridge: GBACartridge) async throws {
+        await LogManager.shared.log("Initializing Memory Manager...", category: "Memory", level: .info)
         // Initialize memory manager
         memory = GBAMemoryManager(cartridge: cartridge)
+        await LogManager.shared.log("✅ Memory Manager ready", category: "Memory", level: .success)
         
+        await LogManager.shared.log("Initializing CPU (ARM7TDMI)...", category: "CPU", level: .info)
         // Initialize CPU
         cpu = GBAARM7TDMI(memory: memory!)
+        await LogManager.shared.log("✅ CPU ready", category: "CPU", level: .success)
         
+        await LogManager.shared.log("Initializing PPU (Graphics)...", category: "PPU", level: .info)
         // Initialize PPU
         ppu = GBAPictureProcessingUnit(memory: memory!, renderer: metalRenderer)
+        await LogManager.shared.log("⚠️ PPU initialized (stub - no rendering yet)", category: "PPU", level: .warning)
         
+        await LogManager.shared.log("Initializing APU (Audio)...", category: "Audio", level: .info)
         // Initialize APU
         apu = GBAAudioProcessingUnit(audioEngine: audioEngine)
+        await LogManager.shared.log("⚠️ APU initialized (stub - no sound yet)", category: "Audio", level: .warning)
         
         // Initialize timer system
         timerSystem = GBATimerSystem()

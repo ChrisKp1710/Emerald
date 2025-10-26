@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 import UniformTypeIdentifiers
 
 struct ROMLibraryView: View {
@@ -148,7 +149,6 @@ struct CategorySidebar: View {
 
 struct LibraryToolbar: View {
     @EnvironmentObject private var romLibrary: ROMLibrary
-    @State private var showingAddROM = false
     
     var body: some View {
         HStack {
@@ -179,9 +179,9 @@ struct LibraryToolbar: View {
             Divider()
                 .frame(height: 20)
             
-            // Add ROM button
+            // Add ROM button - Using NSOpenPanel for proper sandbox permissions
             Button {
-                showingAddROM = true
+                openROMFilePicker()
             } label: {
                 Label("Add ROM", systemImage: "plus")
             }
@@ -198,22 +198,39 @@ struct LibraryToolbar: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .fileImporter(
-            isPresented: $showingAddROM,
-            allowedContentTypes: [.init(filenameExtension: "gba")!, 
-                                 .init(filenameExtension: "bin")!,
-                                 .init(filenameExtension: "rom")!],
-            allowsMultipleSelection: true
-        ) { result in
-            switch result {
-            case .success(let urls):
-                for url in urls {
-                    Task {
-                        try? await romLibrary.addROM(from: url)
+    }
+    
+    private func openROMFilePicker() {
+        Task { @MainActor in
+            await LogManager.shared.log("🔍 Opening ROM file picker...", category: "System", level: .info)
+            
+            let panel = NSOpenPanel()
+            panel.title = "Select GBA ROM Files"
+            panel.message = "Choose one or more GBA ROM files to add to your library"
+            panel.allowsMultipleSelection = true
+            panel.canChooseDirectories = false
+            panel.canChooseFiles = true
+            panel.allowedContentTypes = [
+                .init(filenameExtension: "gba")!,
+                .init(filenameExtension: "bin")!,
+                .init(filenameExtension: "rom")!
+            ]
+            
+            let response = panel.runModal()
+            
+            if response == .OK {
+                await LogManager.shared.log("✅ User selected \(panel.urls.count) file(s)", category: "System", level: .success)
+                
+                for url in panel.urls {
+                    do {
+                        try await romLibrary.addROM(from: url)
+                    } catch {
+                        await LogManager.shared.log("❌ Failed to add ROM: \(error.localizedDescription)", category: "ROM", level: .error)
+                        print("Failed to add ROM from \(url.path): \(error)")
                     }
                 }
-            case .failure(let error):
-                print("Failed to add ROMs: \(error)")
+            } else {
+                await LogManager.shared.log("ℹ️ User cancelled file selection", category: "System", level: .info)
             }
         }
     }
