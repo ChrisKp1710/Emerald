@@ -98,25 +98,50 @@ Emerald is a high-performance Game Boy Advance emulator designed exclusively for
 - ✅ Audio engine foundation
 - ✅ Clean separation of concerns
 
-### 🟡 **In Progress** (40%)
+### 🟡 **In Progress** (75%)
 
 #### **CPU - ARM7TDMI**
+
+**ARM Instructions (100% Complete!)** 🎉
 - ✅ Register system (R0-R15, banked registers)
 - ✅ CPU modes (User, FIQ, IRQ, Supervisor, Abort, Undefined, System)
 - ✅ PC initialization (0x08000000)
-- ✅ Branch offset correction
 - ✅ Condition codes (all 16 conditions)
 - ✅ **Data Processing** (AND, EOR, SUB, RSB, ADD, ADC, SBC, RSC, TST, TEQ, CMP, CMN, ORR, MOV, BIC, MVN) - 16/16 ✅
-- ✅ **Multiply** (MUL, MLA, UMULL, UMLAL, SMULL, SMLAL) - 6/6 ✅ **NEW!**
-- ✅ **Branch** (B, BL) - Basic implementation
-- ✅ **Load/Store** (LDR, STR) - Basic implementation
-- ✅ **Load/Store Multiple** (LDM, STM) - Structure present
+- ✅ **Multiply** (MUL, MLA, UMULL, UMLAL, SMULL, SMLAL) - 6/6 ✅
+- ✅ **Halfword/Signed Transfers** (LDRH, STRH, LDRSB, LDRSH) - 4/4 ✅
+- ✅ **Single Data Swap** (SWP, SWPB) - 2/2 ✅
+- ✅ **PSR Transfer** (MRS, MSR) - 2/2 ✅
+- ✅ **Branch** (B, BL, BX) - 3/3 ✅
+- ✅ **Load/Store** (LDR, STR, LDRB, STRB) - 4/4 ✅
+- ✅ **Load/Store Multiple** (LDM, STM) - 2/2 ✅
+- ✅ **Software Interrupt** (SWI) - 1/1 ✅
 - ✅ **Universal Binary** - Optimized for Apple Silicon (M1-M5) AND Intel
-- ⚠️ **TODO:** Halfword transfers (LDRH, STRH, LDRSB, LDRSH) - 0/4
-- ⚠️ **TODO:** PSR Transfer (MRS, MSR) - 0/2
-- ⚠️ **TODO:** Single Data Swap (SWP, SWPB) - 0/2
-- ⚠️ **TODO:** Thumb instruction set (~35 instructions)
-- ⚠️ **TODO:** Pipeline refinement
+
+**ARM Total: 39/39 instructions = 100%!** 🔥
+
+**Thumb Instructions (5% Complete)**
+- ✅ **Shift immediate** (LSL, LSR, ASR) - Basic structure (3/3)
+- ⚠️ **TODO:** Add/Subtract - 0/2
+- ⚠️ **TODO:** Move/Compare/Add/Sub immediate - 0/4
+- ⚠️ **TODO:** ALU operations - 0/16
+- ⚠️ **TODO:** Hi register ops/BX - 0/4
+- ⚠️ **TODO:** PC-relative load - 0/1
+- ⚠️ **TODO:** Load/Store register offset - 0/4
+- ⚠️ **TODO:** Load/Store sign-extended - 0/2
+- ⚠️ **TODO:** Load/Store immediate - 0/4
+- ⚠️ **TODO:** Load/Store halfword - 0/2
+- ⚠️ **TODO:** SP-relative load/store - 0/2
+- ⚠️ **TODO:** Load address - 0/2
+- ⚠️ **TODO:** Add offset to SP - 0/1
+- ⚠️ **TODO:** Push/Pop - 0/2
+- ⚠️ **TODO:** Multiple load/store - 0/2
+- ⚠️ **TODO:** Conditional branch - 0/16
+- ⚠️ **TODO:** Software interrupt - 0/1
+- ⚠️ **TODO:** Unconditional branch - 0/1
+- ⚠️ **TODO:** Long branch with link - 0/2
+
+**Thumb Total: 3/51 instructions = 6%**
 
 #### **Memory Manager**
 - ✅ IWRAM, EWRAM, VRAM structure
@@ -158,25 +183,42 @@ Emerald is a high-performance Game Boy Advance emulator designed exclusively for
 
 **Phase 1: Complete CPU** ← **CURRENT PRIORITY** 🎯
 
-**Progress: 40% → Target: 100%**
+**Progress: 75% → Target: 100%**
 
-Latest Update (Oct 27, 2025):
-- ✅ Implemented all 6 ARM Multiply instructions (MUL, MLA, UMULL, UMLAL, SMULL, SMLAL)
+Latest Updates (Oct 27, 2025):
+- ✅ **ARM Instructions: 100% COMPLETE!** 🔥
+  - All 39 ARM instructions implemented
+  - Multiply (MUL, MLA, UMULL, UMLAL, SMULL, SMLAL)
+  - Halfword transfers (LDRH, STRH, LDRSB, LDRSH)
+  - Single Data Swap (SWP, SWPB)
+  - PSR Transfer (MRS, MSR)
 - ✅ Optimized for Universal Binary (Apple Silicon M1-M5 + Intel)
 - ✅ Zero warnings in codebase
-- 🔄 Next: Halfword transfers (LDRH, STRH, LDRSB, LDRSH)
+- 🔄 **Next: Thumb instructions (~51 variants)**
 
-Goal: Implement all ARM7TDMI instructions to achieve accurate CPU emulation.
+Goal: Complete all Thumb instructions to achieve full CPU emulation.
 
 ### Roadmap
 
-#### Phase 1: CPU Implementation (In Progress)
+#### Phase 1: CPU Implementation (75% Complete)
 **Goal:** 100% functional ARM7TDMI processor
 
-- [ ] Implement all ARM instructions (~60)
-- [ ] Implement all Thumb instructions (~40)
-- [ ] CPU pipeline simulation
-- [ ] Pass ARM7TDMI test suites
+**ARM Instructions:**
+- ✅ All 39 ARM instructions implemented (100%)
+- ✅ Data Processing, Multiply, Halfword, Swap, PSR, Branch, Load/Store
+
+**Thumb Instructions:** ← **IN PROGRESS**
+- [ ] Implement all ~51 Thumb instruction variants
+  - Shift immediate (3)
+  - Add/Subtract (2)
+  - Move/Compare/Add/Sub immediate (4)
+  - ALU operations (16)
+  - Hi register ops/BX (4)
+  - Load/Store variants (14)
+  - SP operations (3)
+  - Push/Pop (2)
+  - Branch operations (19)
+- [ ] CPU pipeline refinement
 - [ ] Cycle-accurate timing
 
 #### Phase 2: Graphics & Display
