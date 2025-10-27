@@ -199,6 +199,16 @@ final class GBAARM7TDMI {
             return executeMultiplyLong(instruction)
         }
         
+        // Check for Halfword/Signed Data Transfer (LDRH, STRH, LDRSB, LDRSH)
+        if (instruction & 0x0E400F90) == 0x00000090 {
+            return executeHalfwordTransfer(instruction)
+        }
+        
+        // Check for Single Data Swap (SWP, SWPB)
+        if (instruction & 0x0FB00FF0) == 0x01000090 {
+            return executeSingleDataSwap(instruction)
+        }
+        
         // Regular instruction decoding
         switch (instruction >> 25) & 0x7 {
         case 0, 1: // Data processing
@@ -430,6 +440,126 @@ final class GBAARM7TDMI {
         // Simplified to 3-5 cycles
         let cycles = a ? 5 : 4
         return cycles
+    }
+    
+    // MARK: - Halfword and Signed Data Transfer
+    
+    /// Execute Halfword/Signed Data Transfer (LDRH, STRH, LDRSB, LDRSH)
+    /// Encoding: xxxx 000P U0WL nnnn dddd oooo 1SH1 oooo
+    @inlinable
+    internal func executeHalfwordTransfer(_ instruction: UInt32) -> Int {
+        let p = (instruction >> 24) & 1 != 0  // Pre/post indexing
+        let u = (instruction >> 23) & 1 != 0  // Up/down
+        let w = (instruction >> 21) & 1 != 0  // Write-back
+        let l = (instruction >> 20) & 1 != 0  // Load/store
+        let rn = Int((instruction >> 16) & 0xF)
+        let rd = Int((instruction >> 12) & 0xF)
+        let s = (instruction >> 6) & 1 != 0   // Signed
+        let h = (instruction >> 5) & 1 != 0   // Halfword
+        
+        var address = registers[rn]
+        var offset: UInt32
+        
+        // Calculate offset
+        if (instruction >> 22) & 1 != 0 {
+            // Immediate offset
+            let offsetHi = (instruction >> 8) & 0xF
+            let offsetLo = instruction & 0xF
+            offset = (offsetHi << 4) | offsetLo
+        } else {
+            // Register offset
+            let rm = Int(instruction & 0xF)
+            offset = registers[rm]
+        }
+        
+        // Apply offset
+        if p {
+            // Pre-indexed
+            address = u ? address &+ offset : address &- offset
+        }
+        
+        var cycles = 1
+        
+        if l {
+            // Load
+            if s {
+                if h {
+                    // LDRSH - Load signed halfword
+                    let value16 = memory?.read16(address: address) ?? 0
+                    // Sign extend to 32-bit
+                    let signedValue = Int16(bitPattern: value16)
+                    registers[rd] = UInt32(bitPattern: Int32(signedValue))
+                } else {
+                    // LDRSB - Load signed byte
+                    let value8 = memory?.read8(address: address) ?? 0
+                    // Sign extend to 32-bit
+                    let signedValue = Int8(bitPattern: value8)
+                    registers[rd] = UInt32(bitPattern: Int32(signedValue))
+                }
+            } else {
+                // LDRH - Load unsigned halfword
+                let value16 = memory?.read16(address: address) ?? 0
+                registers[rd] = UInt32(value16)
+            }
+            
+            // Handle PC load
+            if rd == 15 {
+                flushPipeline()
+                cycles += 2
+            }
+            
+            cycles += 1 // Additional cycle for load
+        } else {
+            // Store (only STRH is valid, S=0 H=1)
+            if h && !s {
+                // STRH - Store halfword
+                let value = UInt16(truncatingIfNeeded: registers[rd])
+                memory?.write16(address: address, value: value)
+            }
+        }
+        
+        // Post-indexed or write-back
+        if !p {
+            // Post-indexed
+            address = u ? registers[rn] &+ offset : registers[rn] &- offset
+            registers[rn] = address
+        } else if w && rn != rd {
+            // Write-back (only if pre-indexed and not loading into base register)
+            registers[rn] = address
+        }
+        
+        return cycles
+    }
+    
+    // MARK: - Single Data Swap
+    
+    /// Execute Single Data Swap (SWP, SWPB)
+    /// Encoding: xxxx 0001 0B00 nnnn dddd 0000 1001 mmmm
+    @inlinable
+    internal func executeSingleDataSwap(_ instruction: UInt32) -> Int {
+        let b = (instruction >> 22) & 1 != 0  // Byte/word
+        let rn = Int((instruction >> 16) & 0xF)
+        let rd = Int((instruction >> 12) & 0xF)
+        let rm = Int(instruction & 0xF)
+        
+        let address = registers[rn]
+        
+        guard let mem = memory else { return 1 }
+        
+        if b {
+            // SWPB - Swap byte
+            let temp = mem.read8(address: address)
+            mem.write8(address: address, value: UInt8(truncatingIfNeeded: registers[rm]))
+            registers[rd] = UInt32(temp)
+        } else {
+            // SWP - Swap word
+            let temp = mem.read32(address: address)
+            mem.write32(address: address, value: registers[rm])
+            registers[rd] = temp
+        }
+        
+        // Timing: 1S + 2N + 1I = 4 cycles
+        return 4
     }
     
     private func executeLoadStore(_ instruction: UInt32) -> Int {
