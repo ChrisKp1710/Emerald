@@ -38,8 +38,8 @@ struct MainEmulatorView: View {
                 LogConsoleView()
             }
         }
-        .animation(.easeInOut(duration: 0.35), value: showSidebar)
-        .animation(.easeInOut(duration: 0.3), value: emulatorState.currentROM != nil)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showSidebar)
+        .animation(.easeInOut(duration: 0.25), value: emulatorState.currentROM != nil)
         .onDrop(of: [.fileURL], isTargeted: $dragOver) { providers in
             handleDrop(providers: providers)
         }
@@ -74,12 +74,14 @@ struct MainEmulatorView: View {
                 .padding(.bottom, 8)
             
             // Lista categorie
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 2) {
                     ForEach(ROMCategory.allCases, id: \.self) { category in
-                        let count = romLibrary.roms.filter { $0.category == category }.count
-                        
-                        Button {
+                        CategoryRow(
+                            category: category,
+                            count: romLibrary.roms.filter { $0.category == category }.count,
+                            isSelected: romLibrary.selectedCategories.contains(category)
+                        ) {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 if romLibrary.selectedCategories.contains(category) {
                                     romLibrary.selectedCategories.remove(category)
@@ -87,33 +89,7 @@ struct MainEmulatorView: View {
                                     romLibrary.selectedCategories.insert(category)
                                 }
                             }
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: category.systemImage)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(romLibrary.selectedCategories.contains(category) ? .white : .purple)
-                                    .frame(width: 20)
-                                
-                                Text(category.rawValue)
-                                    .font(.system(size: 13))
-                                    .foregroundColor(romLibrary.selectedCategories.contains(category) ? .white : .primary)
-                                
-                                Spacer()
-                                
-                                if count > 0 {
-                                    Text("\(count)")
-                                        .font(.caption2)
-                                        .foregroundColor(romLibrary.selectedCategories.contains(category) ? .white.opacity(0.8) : .secondary)
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(romLibrary.selectedCategories.contains(category) ? Color.purple : Color.clear)
-                            )
                         }
-                        .buttonStyle(.plain)
                     }
                     
                     Divider()
@@ -163,7 +139,10 @@ struct MainEmulatorView: View {
             if romLibrary.filteredROMs.isEmpty {
                 emptyLibraryView
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 16)], spacing: 16) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 180, maximum: 250), spacing: 16)],
+                    spacing: 16
+                ) {
                     ForEach(romLibrary.filteredROMs) { rom in
                         ROMCardView(rom: rom)
                             .onTapGesture {
@@ -399,6 +378,45 @@ struct MainEmulatorView: View {
                 await LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
             }
         }
+    }
+}
+
+// MARK: - Subviews per Performance
+
+private struct CategoryRow: View {
+    let category: ROMCategory
+    let count: Int
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: category.systemImage)
+                    .font(.system(size: 14))
+                    .foregroundColor(isSelected ? .white : .purple)
+                    .frame(width: 20)
+                
+                Text(category.rawValue)
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? .white : .primary)
+                
+                Spacer()
+                
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption2)
+                        .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected ? Color.purple : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
