@@ -1,15 +1,15 @@
-# 🎮 Emerald - Game Boy Advance Emulator
+# 🎮 Emerald GBA Emulator
 
 <div align="center">
 
 ![Status](https://img.shields.io/badge/Status-Alpha-yellow)
 ![Platform](https://img.shields.io/badge/Platform-macOS%2013%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.9-orange)
-![License](https://img.shields.io/badge/License-MIT-green)
+![License](https://img.shields.io/badge/License-Proprietary-red)
 
-**A modern, native GBA emulator for macOS built with Swift and SwiftUI**
+**A professional, native macOS Game Boy Advance emulator built with Swift and SwiftUI**
 
-[Features](#-features) • [Status](#-development-status) • [Documentation](#-documentation) • [Building](#-building) • [Roadmap](#-roadmap)
+[Features](#-features) • [Status](#-development-status) • [Architecture](#-architecture) • [Roadmap](#-roadmap) • [License](#-license)
 
 </div>
 
@@ -17,7 +17,7 @@
 
 ## 📝 Overview
 
-Emerald is a Game Boy Advance emulator written from scratch in Swift, leveraging Apple's modern frameworks:
+Emerald is a high-performance Game Boy Advance emulator designed exclusively for macOS. Built from the ground up with modern Swift and SwiftUI, it aims to provide an authentic GBA gaming experience with a clean, native macOS interface.
 - **SwiftUI 4** for native macOS UI
 - **Metal 3** for GPU-accelerated rendering
 - **Core Audio** for low-latency audio
@@ -67,52 +67,222 @@ Emerald is a Game Boy Advance emulator written from scratch in Swift, leveraging
 #### **Architecture**
 - 🏗️ Clean modular structure (14 organized folders)
 - 🧩 MVVM pattern with SwiftUI
-- 📦 Separated concerns (Core, Views, Models, Managers)
-- 🔧 Professional code organization
+## � Development Status
 
-### 🟡 **Partially Implemented**
+**Current Version:** 0.1.0 Alpha  
+**Last Updated:** October 27, 2025
 
-#### **CPU - ARM7TDMI** (80% complete)
-- ✅ Full ARM instruction set
-- ✅ Complete THUMB instruction set
-- ✅ 3-stage pipeline (Fetch, Decode, Execute)
-- ✅ All 7 CPU modes
-- ✅ Condition codes and barrel shifter
-- ⚠️ Not fully tested with real games
+### ✅ **Completed** (100%)
 
-#### **Memory System** (85% complete)
-- ✅ All memory regions (BIOS, IWRAM, EWRAM, VRAM, etc.)
+#### **UI/UX Framework**
+- ✅ Professional native macOS design
+- ✅ Responsive sidebar with category filters
+- ✅ ROM library with search and grid view
+- ✅ Toolbar with responsive layout
+- ✅ Settings panel
+- ✅ Debug log console with filtering
+- ✅ Drag & Drop ROM support
+
+#### **ROM Management**
+- ✅ Sandbox-compliant file loading (NSOpenPanel)
+- ✅ Security-scoped bookmark persistence
+- ✅ Battery backup (SRAM) support
+- ✅ ROM metadata extraction
+- ✅ Category system (RPG, Action, Puzzle, etc.)
+- ✅ Search and filtering
+
+#### **Core Architecture**
+- ✅ EmulatorState management
+- ✅ Component structure (CPU, PPU, APU, Memory)
+- ✅ Metal renderer setup
+- ✅ Audio engine foundation
+- ✅ Clean separation of concerns
+
+### 🟡 **In Progress** (30%)
+
+#### **CPU - ARM7TDMI**
+- ✅ Register system (R0-R15, banked registers)
+- ✅ Basic structure and modes
+- ✅ PC initialization (0x08000000)
+- ✅ Branch offset correction
+- ⚠️ **TODO:** ARM instruction set (~60 instructions)
+- ⚠️ **TODO:** Thumb instruction set (~40 instructions)
+- ⚠️ **TODO:** Pipeline simulation
+- ⚠️ **TODO:** Condition code handling
+
+#### **Memory Manager**
+- ✅ IWRAM, EWRAM, VRAM structure
 - ✅ Cartridge ROM mapping
-- ✅ Save RAM detection (Flash/SRAM/EEPROM)
-- ⚠️ I/O registers don't trigger hardware actions yet
+- ⚠️ **TODO:** Complete I/O register handling
+- ⚠️ **TODO:** DMA transfers
 
-### 🔴 **Not Yet Implemented**
+### 🔴 **Not Implemented** (0%)
 
-- ❌ **PPU Graphics Rendering** (critical - shows blank screen)
-- ❌ **Input System** (keyboard events not captured)
-- ❌ **APU Audio** (no sound generation)
-- ❌ **DMA Transfers** (stub only)
-- ❌ **Timer System** (not counting)
-- ❌ **Save States** (UI exists but not functional)
+- ❌ **PPU (Picture Processing Unit)**
+  - Background rendering (modes 0-5)
+  - Sprite rendering (OBJ)
+  - Window effects
+  - Blending and effects
+
+- ❌ **APU (Audio Processing Unit)**
+  - 4 sound channels
+  - Direct Sound (A/B)
+  - Audio mixing
+
+- ❌ **Input System**
+  - Keyboard controls
+  - Controller support
+  - Key mapping
+
+- ❌ **Timers & Interrupts**
+  - 4 hardware timers
+  - Complete interrupt handling
+
+- ❌ **Advanced Features**
+  - Save states
+  - Fast forward
+  - Frame skip
+  - Rewind
 
 ---
 
-## 📊 Development Status
+## 📊 Current Focus
 
-| Component         | Status | Progress | Notes                          |
-|-------------------|--------|----------|--------------------------------|
-| UI Framework      | ✅     | 100%     | Fully working                  |
-| ROM Management    | ✅     | 100%     | Fully working                  |
-| Metal Rendering   | ✅     | 100%     | Shaders working                |
-| Settings System   | ✅     | 100%     | Persistent settings            |
-| CPU (ARM7TDMI)    | 🟡     | 80%      | Implemented, needs testing     |
-| Memory Manager    | 🟡     | 85%      | Works, needs I/O integration   |
-| **PPU (Graphics)**| 🔴     | 10%      | **Critical: Not rendering**    |
-| **Input System**  | 🔴     | 5%       | **Critical: Not working**      |
-| APU (Audio)       | 🔴     | 5%       | Not generating sound           |
-| DMA Controller    | 🔴     | 20%      | Stub only                      |
-| Interrupts        | 🟡     | 50%      | Partially working              |
-| **Overall**       | 🟡     | **45%**  | **Alpha stage**                |
+**Phase 1: Complete CPU** ← **CURRENT PRIORITY** 🎯
+
+Goal: Implement all ARM7TDMI instructions to achieve accurate CPU emulation.
+
+### Roadmap
+
+#### Phase 1: CPU Implementation (In Progress)
+**Goal:** 100% functional ARM7TDMI processor
+
+- [ ] Implement all ARM instructions (~60)
+- [ ] Implement all Thumb instructions (~40)
+- [ ] CPU pipeline simulation
+- [ ] Pass ARM7TDMI test suites
+- [ ] Cycle-accurate timing
+
+#### Phase 2: Graphics & Display
+**Goal:** See games rendering on screen
+
+- [ ] Implement PPU mode 3 (simplest - 240x160 bitmap)
+- [ ] Sprite rendering (OBJ)
+- [ ] Background layers (modes 0-2)
+- [ ] VRAM access patterns
+- [ ] Timing and V-blank
+
+#### Phase 3: Audio & Input
+**Goal:** Make games playable
+
+- [ ] Basic audio output (4 channels)
+- [ ] Keyboard controls
+- [ ] Controller support
+- [ ] Audio mixing
+
+#### Phase 4: Advanced Features
+**Goal:** Full-speed, feature-complete emulation
+
+- [ ] Save states (quick save/load)
+- [ ] DMA transfers
+- [ ] Timer system
+- [ ] Fast forward
+- [ ] Frame skip
+- [ ] Rewind
+
+#### Phase 5: Polish & Release
+**Goal:** App Store submission
+
+- [ ] Performance optimization
+- [ ] UI refinements
+- [ ] Comprehensive testing
+- [ ] Documentation
+- [ ] App Store preparation
+
+---
+
+## 📚 Technical Details
+
+### CPU Emulation
+- **Processor:** ARM7TDMI @ 16.78 MHz
+- **Instruction Sets:** ARM (32-bit), Thumb (16-bit)
+- **Registers:** 16 general-purpose + CPSR/SPSR
+- **Modes:** User, FIQ, IRQ, Supervisor, Abort, Undefined, System
+
+### Memory Map
+```
+0x00000000 - 0x00003FFF   BIOS (16 KB)
+0x02000000 - 0x0203FFFF   EWRAM (256 KB)
+0x03000000 - 0x03007FFF   IWRAM (32 KB)
+0x04000000 - 0x040003FF   I/O Registers
+0x05000000 - 0x050003FF   Palette RAM (1 KB)
+0x06000000 - 0x06017FFF   VRAM (96 KB)
+0x07000000 - 0x070003FF   OAM (1 KB)
+0x08000000 - 0x09FFFFFF   ROM (32 MB)
+0x0E000000 - 0x0E00FFFF   Save RAM (64 KB)
+```
+
+---
+
+## 📄 License
+
+**Copyright © 2025 Christian Koscielniak Pinto. All Rights Reserved.**
+
+This software is proprietary. See [LICENSE](LICENSE) for full details.
+
+- ✅ You may **view** the source code for reference and educational purposes
+- ❌ You may **NOT** copy, modify, distribute, or use this software
+- ❌ You may **NOT** use for any commercial or non-commercial purposes
+- ❌ No license is granted for any use without explicit permission
+
+**Important:** If this repository is public on GitHub, viewing the code does NOT grant you any rights to use it. All rights are reserved by the copyright holder.
+
+For licensing inquiries or permissions, please contact the author.
+
+---
+
+## 🙏 Acknowledgments
+
+### Resources
+- [GBATEK](https://problemkaputt.de/gbatek.htm) - Comprehensive GBA technical documentation
+- [Tonc](https://www.coranac.com/tonc/text/) - GBA programming tutorials
+- [ARM7TDMI Manual](https://developer.arm.com/) - Official ARM documentation
+- [No$GBA](https://problemkaputt.de/gba.htm) - Reference debugger
+
+### Inspiration
+- mGBA - Reference for emulation accuracy
+- VisualBoyAdvance - Pioneer GBA emulator
+- SkyEmu - Modern emulator architecture
+
+---
+
+## ⚠️ Disclaimer
+
+This emulator is for **educational and preservation purposes only**. 
+
+- Game Boy Advance is a trademark of Nintendo Co., Ltd.
+- This project is **not affiliated with, endorsed by, or sponsored by Nintendo**
+- Users must own legal copies of games they run
+- ROM distribution is illegal and not supported by this project
+
+---
+
+## � Contact
+
+**Developer:** Christian Koscielniak Pinto  
+**GitHub:** [@ChrisKp1710](https://github.com/ChrisKp1710)  
+**Repository:** [Emerald](https://github.com/ChrisKp1710/Emerald)
+
+---
+
+<div align="center">
+
+**Status:** 🔨 Under Active Development  
+**Last Updated:** October 27, 2025
+
+Made with ❤️ for the GBA community
+
+</div>
 
 **See [Docs/PROJECT_STATUS.md](Docs/PROJECT_STATUS.md) for detailed status.**
 
