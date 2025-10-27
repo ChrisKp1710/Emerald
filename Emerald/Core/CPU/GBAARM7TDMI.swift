@@ -92,12 +92,17 @@ final class GBAARM7TDMI {
         bankedRegisters.removeAll()
         savedPSR.removeAll()
         
-        // Reset CPSR to supervisor mode
-        cpsr = 0x13
+        // Reset CPSR to supervisor mode (SVC mode, ARM state, interrupts disabled)
+        cpsr = 0xD3  // SVC mode (0x13) + I and F bits set
         instructionSet = .arm
         
-        // Set initial PC (Program Counter) to 0x00000000
-        registers[15] = 0x00000000
+        // Set initial PC to ROM start (0x08000000)
+        // GBA boots from cartridge ROM after BIOS (we skip BIOS for now)
+        registers[15] = 0x08000000
+        
+        // Set initial stack pointers for different modes
+        // SP (R13) should point to end of IWRAM for now
+        registers[13] = 0x03007F00
         
         // Clear pipeline
         pipeline = [UInt32](repeating: 0, count: 3)
@@ -106,6 +111,8 @@ final class GBAARM7TDMI {
         // Reset counters
         cycleCount = 0
         instructionCount = 0
+        
+        logger.info("CPU reset complete - PC: 0x\(String(format: "%08X", self.registers[15]))")
     }
     
     /// Execute a single instruction
@@ -151,7 +158,9 @@ final class GBAARM7TDMI {
             if instructionSet == .arm {
                 cycles += executeARMInstruction(instruction)
             } else {
-                cycles += executeThumbInstruction(UInt16(instruction & 0xFFFF))
+                // Safely cast to UInt16 for Thumb instructions
+                let thumbInstruction = UInt16(truncatingIfNeeded: instruction & 0xFFFF)
+                cycles += executeThumbInstruction(thumbInstruction)
             }
             
             pipelineValid[1] = false
@@ -350,7 +359,7 @@ final class GBAARM7TDMI {
         } else {
             // Store
             if b {
-                memory.write8(address: address, value: UInt8(registers[rd] & 0xFF))
+                memory.write8(address: address, value: UInt8(truncatingIfNeeded: registers[rd] & 0xFF))
             } else {
                 memory.write32(address: address, value: registers[rd])
             }
@@ -447,10 +456,15 @@ final class GBAARM7TDMI {
     
     private func executeBranch(_ instruction: UInt32) -> Int {
         let l = (instruction >> 24) & 1 != 0  // Link
-        let offset = (instruction & 0xFFFFFF) << 2
+        var offset = instruction & 0xFFFFFF
         
-        // Sign extend
-        let signedOffset = Int32(offset << 6) >> 6
+        // Sign extend 24-bit offset to 32-bit
+        if (offset & 0x800000) != 0 {
+            offset |= 0xFF000000  // Set upper 8 bits for negative
+        }
+        
+        // Shift left by 2 (instructions are word-aligned)
+        let signedOffset = Int32(bitPattern: offset) << 2
         
         if l {
             // Branch with Link - save return address
@@ -458,7 +472,7 @@ final class GBAARM7TDMI {
         }
         
         // Update PC
-        registers[15] = UInt32(Int32(registers[15]) + signedOffset)
+        registers[15] = UInt32(bitPattern: Int32(bitPattern: registers[15]) &+ signedOffset)
         
         flushPipeline()
         return 3

@@ -15,13 +15,31 @@ struct MainEmulatorView: View {
     @StateObject private var logManager = LogManager.shared
     
     @State private var showingFilePicker = false
-    @State private var showingROMLibrary = false
     @State private var dragOver = false
+    @State private var searchText = ""
+    
+    // Determina se mostrare library o emulator
+    private var showingLibrary: Bool {
+        emulatorState.currentROM == nil || !emulatorState.isRunning
+    }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Main emulator area
-            emulatorContent
+            // Toolbar sempre visibile
+            if showingLibrary {
+                libraryToolbar
+            } else {
+                emulatorToolbar
+            }
+            
+            Divider()
+            
+            // Contenuto principale: Library o Emulator
+            if showingLibrary {
+                libraryContent
+            } else {
+                emulatorContent
+            }
             
             // Log console (toggleable)
             if logManager.isVisible {
@@ -33,6 +51,142 @@ struct MainEmulatorView: View {
         }
     }
     
+    // MARK: - Library Toolbar
+    
+    var libraryToolbar: some View {
+        HStack {
+            Text("Library")
+                .font(.title2)
+                .fontWeight(.bold)
+            
+            Spacer()
+            
+            // Search
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("Search ROMs...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .frame(width: 200)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            
+            // Add ROM button
+            Button {
+                openROMFilePicker()
+            } label: {
+                Label("Add ROM", systemImage: "plus")
+            }
+            
+            // Rescan button
+            Button {
+                Task {
+                    await romLibrary.scanForROMs()
+                }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .disabled(romLibrary.isScanning)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+    }
+    
+    // MARK: - Emulator Toolbar
+    
+    var emulatorToolbar: some View {
+        HStack {
+            Button {
+                emulatorState.stopEmulation()
+            } label: {
+                Label("Back to Library", systemImage: "chevron.left")
+            }
+            
+            Spacer()
+            
+            if let rom = emulatorState.currentROM {
+                Text(rom.title)
+                    .font(.headline)
+            }
+            
+            Spacer()
+            
+            // Emulator controls will go here
+            Text("") // Placeholder for symmetry
+                .frame(width: 100)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+    }
+    
+    // MARK: - Library Content
+    
+    var libraryContent: some View {
+        Group {
+            if romLibrary.roms.isEmpty {
+                emptyLibraryView
+            } else {
+                romGridView
+            }
+        }
+    }
+    
+    var emptyLibraryView: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "gamecontroller.fill")
+                .font(.system(size: 72))
+                .foregroundColor(.secondary)
+            
+            VStack(spacing: 8) {
+                Text("No ROMs Found")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("Add GBA ROM files to get started")
+                    .foregroundColor(.secondary)
+            }
+            
+            Button("Add ROM") {
+                openROMFilePicker()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    var romGridView: some View {
+        ScrollView {
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 16)
+            ], spacing: 16) {
+                ForEach(filteredROMs) { rom in
+                    ROMCardView(rom: rom)
+                        .onTapGesture {
+                            playROM(rom)
+                        }
+                }
+            }
+            .padding()
+        }
+    }
+    
+    private var filteredROMs: [GBARom] {
+        if searchText.isEmpty {
+            return romLibrary.roms
+        } else {
+            return romLibrary.roms.filter { rom in
+                rom.title.localizedCaseInsensitiveContains(searchText) ||
+                rom.gameCode.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
+    // MARK: - Emulator Content
+    
     var emulatorContent: some View {
         GeometryReader { geometry in
             ZStack {
@@ -40,16 +194,11 @@ struct MainEmulatorView: View {
                 Color.black
                     .ignoresSafeArea()
                 
-                if let currentROM = emulatorState.currentROM {
-                    // Emulator screen
-                    EmulatorScreenView()
-                        .aspectRatio(240.0/160.0, contentMode: .fit)
-                        .scaleEffect(settings.displayScale)
-                        .clipped()
-                } else {
-                    // Welcome screen
-                    WelcomeView()
-                }
+                // Emulator screen
+                EmulatorScreenView()
+                    .aspectRatio(240.0/160.0, contentMode: .fit)
+                    .scaleEffect(settings.displayScale)
+                    .clipped()
                 
                 // Drag overlay
                 if dragOver {
@@ -58,157 +207,106 @@ struct MainEmulatorView: View {
                         .background(Color.accentColor.opacity(0.1))
                         .overlay(
                             VStack(spacing: 16) {
-                                Image(systemName: "gamecontroller")
+                                Image(systemName: "arrow.down.doc.fill")
                                     .font(.system(size: 48))
                                     .foregroundColor(.accentColor)
-                                
                                 Text("Drop ROM file to play")
-                                    .font(.title2)
-                                    .foregroundColor(.primary)
+                                    .font(.headline)
+                                    .foregroundColor(.accentColor)
                             }
                         )
                         .padding(20)
                 }
             }
         }
-        .onDrop(of: [.fileURL], isTargeted: $dragOver) { providers in
-            handleDrop(providers: providers)
-        }
-        .fileImporter(
-            isPresented: $showingFilePicker,
-            allowedContentTypes: [
-                UTType(filenameExtension: "gba", conformingTo: .data) ?? .data,
-                UTType(filenameExtension: "bin", conformingTo: .data) ?? .data,
-                UTType(filenameExtension: "rom", conformingTo: .data) ?? .data
-            ]
-        ) { result in
-            handleFileImport(result: result)
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                if emulatorState.isRunning {
-                    Button(emulatorState.isPaused ? "Resume" : "Pause") {
-                        if emulatorState.isPaused {
-                            emulatorState.resumeEmulation()
-                        } else {
-                            emulatorState.pauseEmulation()
-                        }
-                    }
-                    .keyboardShortcut(.space, modifiers: [])
-                    
-                    Button("Stop") {
-                        emulatorState.stopEmulation()
-                    }
-                    .keyboardShortcut(".", modifiers: .command)
-                }
-                
-                Button("Open ROM...") {
-                    showingFilePicker = true
-                }
-                .keyboardShortcut("o", modifiers: .command)
+    }
+    
+    // MARK: - Actions
+    
+    private func playROM(_ rom: GBARom) {
+        Task { @MainActor in
+            do {
+                await LogManager.shared.log("▶️ Starting emulation for: \(rom.title)", category: "System", level: .info)
+                try await emulatorState.loadROM(rom)
+                emulatorState.startEmulation()
+            } catch {
+                await LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
             }
         }
     }
     
+    private func openROMFilePicker() {
+        Task { @MainActor in
+            await LogManager.shared.log("🔍 Opening ROM file picker...", category: "System", level: .info)
+            
+            let panel = NSOpenPanel()
+            panel.title = "Select GBA ROM Files"
+            panel.message = "Choose one or more GBA ROM files to add to your library"
+            panel.allowsMultipleSelection = true
+            panel.canChooseDirectories = false
+            panel.canChooseFiles = true
+            panel.allowedContentTypes = [
+                .init(filenameExtension: "gba")!,
+                .init(filenameExtension: "bin")!,
+                .init(filenameExtension: "rom")!
+            ]
+            
+            let response = panel.runModal()
+            
+            if response == .OK {
+                await LogManager.shared.log("✅ User selected \(panel.urls.count) file(s)", category: "System", level: .success)
+                
+                for url in panel.urls {
+                    do {
+                        try await romLibrary.addROM(from: url)
+                    } catch {
+                        await LogManager.shared.log("❌ Failed to add ROM: \(error.localizedDescription)", category: "ROM", level: .error)
+                    }
+                }
+            } else {
+                await LogManager.shared.log("ℹ️ User cancelled file selection", category: "System", level: .info)
+            }
+        }
+    }
+
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
         
         _ = provider.loadObject(ofClass: URL.self) { url, error in
             if let url = url {
-                DispatchQueue.main.async {
-                    loadROM(from: url)
+                Task { @MainActor in
+                    self.loadROM(from: url)
                 }
             }
         }
         return true
     }
     
-    private func handleFileImport(result: Result<URL, Error>) {
-        switch result {
-        case .success(let url):
-            loadROM(from: url)
-        case .failure(let error):
-            print("Failed to import file: \(error)")
-        }
-    }
-    
     private func loadROM(from url: URL) {
         Task { @MainActor in
             do {
-                await LogManager.shared.log("🎮 Loading ROM from: \(url.lastPathComponent)", category: "ROM", level: .info)
+                await LogManager.shared.log("🎮 Loading ROM from drag & drop: \(url.lastPathComponent)", category: "ROM", level: .info)
                 
                 let filename = url.lastPathComponent
                 
                 // Check if ROM already exists in library
                 if let existingROM = romLibrary.roms.first(where: { $0.url.lastPathComponent == filename }) {
-                    await LogManager.shared.log("ℹ️ ROM already in library, loading existing copy", category: "ROM", level: .info)
-                    await LogManager.shared.log("▶️ Starting emulation for: \(existingROM.title)", category: "System", level: .info)
-                    try await emulatorState.loadROM(existingROM)
-                    emulatorState.startEmulation()
+                    await LogManager.shared.log("ℹ️ ROM already in library, starting playback", category: "ROM", level: .info)
+                    playROM(existingROM)
                     return
                 }
                 
                 // Add new ROM to library
                 try await romLibrary.addROM(from: url)
                 
-                // Get the last added ROM (the one we just added)
+                // Play the newly added ROM
                 if let rom = romLibrary.roms.last {
-                    await LogManager.shared.log("▶️ Starting emulation for: \(rom.title)", category: "System", level: .info)
-                    try await emulatorState.loadROM(rom)
-                    emulatorState.startEmulation()
-                } else {
-                    await LogManager.shared.log("⚠️ ROM not found in library after adding", category: "ROM", level: .warning)
+                    playROM(rom)
                 }
             } catch {
                 await LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
-                print("Failed to load ROM: \(error)")
             }
         }
-    }
-}
-
-struct WelcomeView: View {
-    @EnvironmentObject private var romLibrary: ROMLibrary
-    @Environment(\.openWindow) private var openWindow
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "gamecontroller.fill")
-                .font(.system(size: 72))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 8) {
-                Text("Emerald GBA Emulator")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                if romLibrary.roms.isEmpty {
-                    Text("Drop a ROM file here or use File > Open ROM...")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text("You have \(romLibrary.roms.count) ROM(s) in your library")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            HStack(spacing: 16) {
-                Button("Open ROM Library") {
-                    // Open ROM Library window
-                    openWindow(id: "library")
-                }
-                .keyboardShortcut("l", modifiers: .command)
-                
-                Button("Open ROM...") {
-                    // Trigger Open ROM menu command
-                    NSApp.sendAction(Selector(("openDocument:")), to: nil, from: nil)
-                }
-                .keyboardShortcut("o", modifiers: .command)
-            }
-            .padding(.top)
-        }
-        .padding(40)
     }
 }
 

@@ -31,7 +31,7 @@ struct EmeraldApp: App {
     }
     
     var body: some Scene {
-        // Main emulator window
+        // Main window - Everything integrated!
         WindowGroup("Emerald GBA Emulator") {
             MainEmulatorView()
                 .environmentObject(emulatorState)
@@ -40,20 +40,12 @@ struct EmeraldApp: App {
                 .focusedEmulatorState(emulatorState)
                 .focusedROMLibrary(romLibrary)
                 .focusedEmulatorSettings(settings)
-                .frame(minWidth: 480, minHeight: 320)
+                .frame(minWidth: 800, minHeight: 600)
         }
         .windowResizability(.contentSize)
         .windowToolbarStyle(.unified)
         .commands {
             EmulatorMenuCommands()
-        }
-        
-        // ROM Library window
-        WindowGroup("ROM Library", id: "library") {
-            ROMLibraryView()
-                .environmentObject(romLibrary)
-                .environmentObject(settings)
-                .frame(minWidth: 800, minHeight: 600)
         }
         
         // Settings window

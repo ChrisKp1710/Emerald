@@ -55,12 +55,6 @@ struct EmulatorMenuCommands: Commands {
             }
             .keyboardShortcut("o", modifiers: .command)
             
-            Button("Show ROM Library...") {
-                // Request opening the ROM Library window
-                NotificationCenter.default.post(name: NSNotification.Name("OpenROMLibrary"), object: nil)
-            }
-            .keyboardShortcut("l", modifiers: .command)
-            
             Divider()
             
             Button("Close ROM") {
