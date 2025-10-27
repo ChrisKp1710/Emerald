@@ -31,8 +31,8 @@ struct EmulatorMenuCommands: Commands {
                             
                             // Check if ROM already exists in library
                             if let existingROM = romLibrary?.roms.first(where: { $0.url.lastPathComponent == filename }) {
-                                await LogManager.shared.log("ℹ️ ROM already in library, loading existing copy", category: "ROM", level: .info)
-                                await LogManager.shared.log("▶️ Starting emulation for: \(existingROM.title)", category: "System", level: .info)
+                                LogManager.shared.log("ℹ️ ROM already in library, loading existing copy", category: "ROM", level: .info)
+                                LogManager.shared.log("▶️ Starting emulation for: \(existingROM.title)", category: "System", level: .info)
                                 try await emulatorState?.loadROM(existingROM)
                                 emulatorState?.startEmulation()
                                 return
@@ -43,12 +43,12 @@ struct EmulatorMenuCommands: Commands {
                             
                             // Get the last added ROM (the one we just added)
                             if let rom = romLibrary?.roms.last {
-                                await LogManager.shared.log("▶️ Starting emulation for: \(rom.title)", category: "System", level: .info)
+                                LogManager.shared.log("▶️ Starting emulation for: \(rom.title)", category: "System", level: .info)
                                 try await emulatorState?.loadROM(rom)
                                 emulatorState?.startEmulation()
                             }
                         } catch {
-                            await LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
+                            LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
                         }
                     }
                 }

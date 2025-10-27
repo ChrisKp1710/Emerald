@@ -98,17 +98,25 @@ Emerald is a high-performance Game Boy Advance emulator designed exclusively for
 - ✅ Audio engine foundation
 - ✅ Clean separation of concerns
 
-### 🟡 **In Progress** (30%)
+### 🟡 **In Progress** (40%)
 
 #### **CPU - ARM7TDMI**
 - ✅ Register system (R0-R15, banked registers)
-- ✅ Basic structure and modes
+- ✅ CPU modes (User, FIQ, IRQ, Supervisor, Abort, Undefined, System)
 - ✅ PC initialization (0x08000000)
 - ✅ Branch offset correction
-- ⚠️ **TODO:** ARM instruction set (~60 instructions)
-- ⚠️ **TODO:** Thumb instruction set (~40 instructions)
-- ⚠️ **TODO:** Pipeline simulation
-- ⚠️ **TODO:** Condition code handling
+- ✅ Condition codes (all 16 conditions)
+- ✅ **Data Processing** (AND, EOR, SUB, RSB, ADD, ADC, SBC, RSC, TST, TEQ, CMP, CMN, ORR, MOV, BIC, MVN) - 16/16 ✅
+- ✅ **Multiply** (MUL, MLA, UMULL, UMLAL, SMULL, SMLAL) - 6/6 ✅ **NEW!**
+- ✅ **Branch** (B, BL) - Basic implementation
+- ✅ **Load/Store** (LDR, STR) - Basic implementation
+- ✅ **Load/Store Multiple** (LDM, STM) - Structure present
+- ✅ **Universal Binary** - Optimized for Apple Silicon (M1-M5) AND Intel
+- ⚠️ **TODO:** Halfword transfers (LDRH, STRH, LDRSB, LDRSH) - 0/4
+- ⚠️ **TODO:** PSR Transfer (MRS, MSR) - 0/2
+- ⚠️ **TODO:** Single Data Swap (SWP, SWPB) - 0/2
+- ⚠️ **TODO:** Thumb instruction set (~35 instructions)
+- ⚠️ **TODO:** Pipeline refinement
 
 #### **Memory Manager**
 - ✅ IWRAM, EWRAM, VRAM structure
@@ -149,6 +157,14 @@ Emerald is a high-performance Game Boy Advance emulator designed exclusively for
 ## 📊 Current Focus
 
 **Phase 1: Complete CPU** ← **CURRENT PRIORITY** 🎯
+
+**Progress: 40% → Target: 100%**
+
+Latest Update (Oct 27, 2025):
+- ✅ Implemented all 6 ARM Multiply instructions (MUL, MLA, UMULL, UMLAL, SMULL, SMLAL)
+- ✅ Optimized for Universal Binary (Apple Silicon M1-M5 + Intel)
+- ✅ Zero warnings in codebase
+- 🔄 Next: Halfword transfers (LDRH, STRH, LDRSB, LDRSH)
 
 Goal: Implement all ARM7TDMI instructions to achieve accurate CPU emulation.
 
