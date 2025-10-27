@@ -848,6 +848,30 @@ final class GBAARM7TDMI {
         cycleCount = state.cycleCount
         instructionCount = state.instructionCount
     }
+    
+    // MARK: - Testing Interface
+    
+    /// Get register value (for testing)
+    func getRegister(_ index: Int) -> UInt32 {
+        guard index >= 0 && index < 16 else { return 0 }
+        return registers[index]
+    }
+    
+    /// Set register value (for testing)
+    func setRegister(_ index: Int, value: UInt32) {
+        guard index >= 0 && index < 16 else { return }
+        registers[index] = value
+    }
+    
+    /// Get CPSR (for testing)
+    func getCPSR() -> UInt32 {
+        return cpsr
+    }
+    
+    /// Set CPSR (for testing)
+    func setCPSR(_ value: UInt32) {
+        cpsr = value
+    }
 }
 
 // MARK: - Supporting Types
