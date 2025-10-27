@@ -17,6 +17,7 @@ struct MainEmulatorView: View {
     @State private var showingFilePicker = false
     @State private var dragOver = false
     @State private var searchText = ""
+    @State private var showAdvancedLibrary = false // Toggle tra vista semplice e avanzata
     
     // Determina se mostrare library o emulator
     private var showingLibrary: Bool {
@@ -34,12 +35,26 @@ struct MainEmulatorView: View {
             
             Divider()
             
-            // Contenuto principale: Library o Emulator
-            if showingLibrary {
-                libraryContent
-            } else {
-                emulatorContent
+            // Contenuto principale: Switch tra vista semplice/avanzata/emulator
+            Group {
+                if showingLibrary {
+                    if showAdvancedLibrary {
+                        // Vista avanzata con sidebar e dettagli
+                        advancedLibraryView
+                            .transition(.move(edge: .trailing))
+                    } else {
+                        // Vista semplice con griglia
+                        simpleLibraryView
+                            .transition(.move(edge: .leading))
+                    }
+                } else {
+                    // Vista emulatore
+                    emulatorContent
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.3), value: showAdvancedLibrary)
+            .animation(.easeInOut(duration: 0.3), value: showingLibrary)
             
             // Log console (toggleable)
             if logManager.isVisible {
@@ -55,7 +70,18 @@ struct MainEmulatorView: View {
     
     var libraryToolbar: some View {
         HStack {
-            Text("Library")
+            // Back button se siamo in vista avanzata
+            if showAdvancedLibrary {
+                Button {
+                    withAnimation {
+                        showAdvancedLibrary = false
+                    }
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+            }
+            
+            Text(showAdvancedLibrary ? "Library" : "Library")
                 .font(.title2)
                 .fontWeight(.bold)
             
@@ -72,6 +98,17 @@ struct MainEmulatorView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            
+            // Toggle vista semplice/avanzata
+            Button {
+                withAnimation {
+                    showAdvancedLibrary.toggle()
+                }
+            } label: {
+                Image(systemName: showAdvancedLibrary ? "square.grid.2x2" : "sidebar.left")
+            }
+            .help(showAdvancedLibrary ? "Simple View" : "Advanced Library")
+            .keyboardShortcut("l", modifiers: .command)
             
             // Add ROM button
             Button {
@@ -123,9 +160,10 @@ struct MainEmulatorView: View {
         .background(.ultraThinMaterial)
     }
     
-    // MARK: - Library Content
+    // MARK: - Library Views
     
-    var libraryContent: some View {
+    // Vista semplice: Griglia base
+    var simpleLibraryView: some View {
         Group {
             if romLibrary.roms.isEmpty {
                 emptyLibraryView
@@ -133,6 +171,14 @@ struct MainEmulatorView: View {
                 romGridView
             }
         }
+    }
+    
+    // Vista avanzata: Sidebar + dettagli
+    var advancedLibraryView: some View {
+        ROMLibraryView()
+            .environmentObject(romLibrary)
+            .environmentObject(settings)
+            .environmentObject(emulatorState)
     }
     
     var emptyLibraryView: some View {
