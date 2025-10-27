@@ -351,15 +351,10 @@ struct ROMCardView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Game icon placeholder
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.quaternary)
+            // Game cover image con placeholder colorato
+            ROMImageView(rom: rom)
                 .frame(height: 120)
-                .overlay {
-                    Image(systemName: rom.category.systemImage)
-                        .font(.system(size: 32))
-                        .foregroundColor(.secondary)
-                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(rom.title)

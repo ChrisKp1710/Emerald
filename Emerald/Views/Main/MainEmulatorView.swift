@@ -41,11 +41,17 @@ struct MainEmulatorView: View {
                     if showAdvancedLibrary {
                         // Vista avanzata con sidebar e dettagli
                         advancedLibraryView
-                            .transition(.move(edge: .trailing))
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
                     } else {
                         // Vista semplice con griglia
                         simpleLibraryView
-                            .transition(.move(edge: .leading))
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .leading).combined(with: .opacity),
+                                removal: .move(edge: .trailing).combined(with: .opacity)
+                            ))
                     }
                 } else {
                     // Vista emulatore
@@ -53,8 +59,8 @@ struct MainEmulatorView: View {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeInOut(duration: 0.3), value: showAdvancedLibrary)
-            .animation(.easeInOut(duration: 0.3), value: showingLibrary)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showAdvancedLibrary)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingLibrary)
             
             // Log console (toggleable)
             if logManager.isVisible {
