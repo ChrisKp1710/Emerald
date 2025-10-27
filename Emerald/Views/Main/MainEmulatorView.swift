@@ -61,10 +61,10 @@ struct MainEmulatorView: View {
         }
     }
     
-    // Sidebar compatta stile Apple
+    // Sidebar scrollabile con categorie responsive
     private var compactSidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header
+        VStack(spacing: 0) {
+            // Header fisso
             Text("CATEGORIES")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
@@ -73,7 +73,7 @@ struct MainEmulatorView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 12)
             
-            // Lista categorie
+            // ScrollView per categorie
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 2) {
                     ForEach(ROMCategory.allCases, id: \.self) { category in
@@ -91,45 +91,49 @@ struct MainEmulatorView: View {
                             }
                         }
                     }
-                    
-                    Divider()
-                        .padding(.vertical, 8)
-                    
-                    // All Games
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            romLibrary.selectedCategories.removeAll()
-                        }
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "gamecontroller")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white : .blue)
-                                .frame(width: 20)
-                            
-                            Text("All Games")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white : .primary)
-                            
-                            Spacer()
-                            
-                            Text("\(romLibrary.roms.count)")
-                                .font(.system(size: 11, weight: .medium))
-                                .monospacedDigit()
-                                .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white.opacity(0.8) : .secondary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(romLibrary.selectedCategories.isEmpty ? Color.blue : Color.clear)
-                        )
-                    }
-                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 8)
             }
+            
+            // Separatore
+            Divider()
+                .padding(.vertical, 8)
+            
+            // All Games fisso in basso
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    romLibrary.selectedCategories.removeAll()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "gamecontroller")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white : .blue)
+                        .frame(width: 20)
+                    
+                    Text("All Games")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white : .primary)
+                    
+                    Spacer()
+                    
+                    Text("\(romLibrary.roms.count)")
+                        .font(.system(size: 11, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white.opacity(0.8) : .secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(romLibrary.selectedCategories.isEmpty ? Color.blue : Color.clear)
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 12)
         }
+        .frame(width: 200)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         .padding(.leading, 8)
         .padding(.vertical, 8)
@@ -178,58 +182,78 @@ struct MainEmulatorView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // MARK: - Library Toolbar
+    // MARK: - Library Toolbar (Responsive)
     
     var libraryToolbar: some View {
-        HStack {
+        HStack(spacing: 12) {
             Text("Library")
                 .font(.title2)
                 .fontWeight(.bold)
+                .lineLimit(1)
             
-            Spacer()
+            Spacer(minLength: 8)
             
-            // Search
-            HStack {
+            // Search compatta responsive
+            HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13))
                     .foregroundColor(.secondary)
-                TextField("Search ROMs...", text: $romLibrary.searchText)
+                TextField("Search...", text: $romLibrary.searchText)
                     .textFieldStyle(.plain)
-                    .frame(width: 200)
+                    .font(.system(size: 13))
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.regularMaterial)
+            .cornerRadius(8)
+            .frame(minWidth: 120, idealWidth: 180, maxWidth: 200)
             
-            // Toggle sidebar (icona cambia: griglia quando sidebar aperta, sidebar quando chiusa)
+            // Toggle sidebar compatto
             Button {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                     showSidebar.toggle()
                 }
             } label: {
                 Image(systemName: showSidebar ? "square.grid.2x2" : "sidebar.left")
+                    .font(.system(size: 15))
             }
-            .help(showSidebar ? "Simple Grid View" : "Show Advanced Library")
+            .buttonStyle(.plain)
+            .padding(6)
+            .background(.regularMaterial)
+            .cornerRadius(6)
+            .help(showSidebar ? "Hide Categories" : "Show Categories")
             .keyboardShortcut("l", modifiers: .command)
             
-            // Add ROM button
+            // Add ROM compatto
             Button {
                 openROMFilePicker()
             } label: {
-                Label("Add ROM", systemImage: "plus")
+                Label("Add", systemImage: "plus")
+                    .labelStyle(.iconOnly)
+                    .font(.system(size: 15))
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
             
-            // Rescan button
+            // Rescan compatto
             Button {
                 Task {
                     await romLibrary.scanForROMs()
                 }
             } label: {
                 Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 15))
             }
+            .buttonStyle(.plain)
+            .padding(6)
+            .background(.regularMaterial)
+            .cornerRadius(6)
             .disabled(romLibrary.isScanning)
+            .rotationEffect(.degrees(romLibrary.isScanning ? 360 : 0))
+            .animation(romLibrary.isScanning ? .linear(duration: 1.0).repeatForever(autoreverses: false) : .default, value: romLibrary.isScanning)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .background(.ultraThinMaterial)
     }
     
@@ -421,6 +445,8 @@ private struct CategoryRow: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Preview
 
 #Preview {
     MainEmulatorView()

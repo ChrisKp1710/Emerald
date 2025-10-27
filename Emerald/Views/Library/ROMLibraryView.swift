@@ -356,7 +356,7 @@ struct ROMCardView: View {
                 .frame(height: 120)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(rom.title)
                     .font(.headline)
                     .lineLimit(2)
@@ -383,8 +383,10 @@ struct ROMCardView: View {
                         .foregroundColor(Color.secondary)
                 }
             }
+            .padding(.horizontal, 4)
+            .padding(.bottom, 4)
         }
-        .padding()
+        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(.regularMaterial)
