@@ -209,6 +209,16 @@ final class GBAARM7TDMI {
             return executeSingleDataSwap(instruction)
         }
         
+        // Check for PSR Transfer (MRS, MSR)
+        if (instruction & 0x0FBF0FFF) == 0x010F0000 {
+            // MRS - Move PSR to Register
+            return executeMRS(instruction)
+        }
+        if (instruction & 0x0DB0F000) == 0x0120F000 {
+            // MSR - Move to PSR
+            return executeMSR(instruction)
+        }
+        
         // Regular instruction decoding
         switch (instruction >> 25) & 0x7 {
         case 0, 1: // Data processing
@@ -558,8 +568,99 @@ final class GBAARM7TDMI {
             registers[rd] = temp
         }
         
-        // Timing: 1S + 2N + 1I = 4 cycles
-        return 4
+        return 4 // Swap instructions take 4 cycles
+    }
+    
+    // MARK: - PSR Transfer Instructions
+    
+    @inlinable
+    internal func executeMRS(_ instruction: UInt32) -> Int {
+        // MRS - Move PSR to Register
+        // Format: MRS{cond} Rd, <PSR>
+        let rd = Int((instruction >> 12) & 0xF)
+        let useSPSR = (instruction >> 22) & 1 != 0
+        
+        if useSPSR {
+            // Read SPSR (only valid in non-User/System modes)
+            let currentMode = Mode(rawValue: cpsr & 0x1F)
+            if currentMode == .user || currentMode == .system {
+                // Unpredictable - reading SPSR in User/System mode
+                registers[rd] = 0
+            } else {
+                // TODO: Get SPSR for current mode from banked registers
+                registers[rd] = cpsr // Placeholder
+            }
+        } else {
+            // Read CPSR
+            registers[rd] = cpsr
+        }
+        
+        return 1
+    }
+    
+    @inlinable
+    internal func executeMSR(_ instruction: UInt32) -> Int {
+        // MSR - Move to PSR
+        // Format: MSR{cond} <PSR>_<fields>, Rm or #imm
+        let useSPSR = (instruction >> 22) & 1 != 0
+        let immediate = (instruction >> 25) & 1 != 0
+        let fieldMask = (instruction >> 16) & 0xF
+        
+        var value: UInt32
+        if immediate {
+            // Immediate value
+            let imm = instruction & 0xFF
+            let rotate = ((instruction >> 8) & 0xF) * 2
+            value = rotateRight(imm, by: Int(rotate))
+        } else {
+            // Register value
+            let rm = Int(instruction & 0xF)
+            value = registers[rm]
+        }
+        
+        // Build mask based on field flags
+        var mask: UInt32 = 0
+        if fieldMask & 0x1 != 0 { // Control field (bits 0-7)
+            mask |= 0x000000FF
+        }
+        if fieldMask & 0x2 != 0 { // Extension field (bits 8-15)
+            mask |= 0x0000FF00
+        }
+        if fieldMask & 0x4 != 0 { // Status field (bits 16-23)
+            mask |= 0x00FF0000
+        }
+        if fieldMask & 0x8 != 0 { // Flags field (bits 24-31)
+            mask |= 0xFF000000
+        }
+        
+        // Check privileges for modifying control bits
+        let currentMode = Mode(rawValue: cpsr & 0x1F)
+        if currentMode == .user {
+            // User mode can only modify flags (bits 24-31)
+            mask &= 0xFF000000
+        }
+        
+        if useSPSR {
+            // Write SPSR (only valid in non-User/System modes)
+            if currentMode != .user && currentMode != .system {
+                // TODO: Update SPSR for current mode in banked registers
+                // Placeholder: just update CPSR for now
+                cpsr = (cpsr & ~mask) | (value & mask)
+            }
+        } else {
+            // Write CPSR
+            let oldCPSR = cpsr
+            cpsr = (cpsr & ~mask) | (value & mask)
+            
+            // If mode changed, handle register banking
+            let newMode = Mode(rawValue: cpsr & 0x1F)
+            if newMode != currentMode {
+                // TODO: Switch register banks
+                // For now, just log the mode change
+            }
+        }
+        
+        return 1
     }
     
     private func executeLoadStore(_ instruction: UInt32) -> Int {
