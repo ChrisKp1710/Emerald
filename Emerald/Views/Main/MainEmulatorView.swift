@@ -65,13 +65,13 @@ struct MainEmulatorView: View {
     private var compactSidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            Text("Categories")
-                .font(.caption)
-                .fontWeight(.semibold)
+            Text("CATEGORIES")
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.secondary)
+                .tracking(1)
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
             
             // Lista categorie
             ScrollView(showsIndicators: false) {
@@ -103,22 +103,23 @@ struct MainEmulatorView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "gamecontroller")
-                                .font(.system(size: 14))
+                                .font(.system(size: 15, weight: .medium))
                                 .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white : .blue)
                                 .frame(width: 20)
                             
                             Text("All Games")
-                                .font(.system(size: 13))
+                                .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white : .primary)
                             
                             Spacer()
                             
                             Text("\(romLibrary.roms.count)")
-                                .font(.caption2)
+                                .font(.system(size: 11, weight: .medium))
+                                .monospacedDigit()
                                 .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white.opacity(0.8) : .secondary)
                         }
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, 7)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(romLibrary.selectedCategories.isEmpty ? Color.blue : Color.clear)
@@ -297,18 +298,18 @@ struct MainEmulatorView: View {
     private func playROM(_ rom: GBARom) {
         Task { @MainActor in
             do {
-                await LogManager.shared.log("▶️ Starting emulation for: \(rom.title)", category: "System", level: .info)
+                LogManager.shared.log("▶️ Starting emulation for: \(rom.title)", category: "System", level: .info)
                 try await emulatorState.loadROM(rom)
                 emulatorState.startEmulation()
             } catch {
-                await LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
+                LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
             }
         }
     }
     
     private func openROMFilePicker() {
         Task { @MainActor in
-            await LogManager.shared.log("🔍 Opening ROM file picker...", category: "System", level: .info)
+            LogManager.shared.log("🔍 Opening ROM file picker...", category: "System", level: .info)
             
             let panel = NSOpenPanel()
             panel.title = "Select GBA ROM Files"
@@ -325,17 +326,17 @@ struct MainEmulatorView: View {
             let response = panel.runModal()
             
             if response == .OK {
-                await LogManager.shared.log("✅ User selected \(panel.urls.count) file(s)", category: "System", level: .success)
+                LogManager.shared.log("✅ User selected \(panel.urls.count) file(s)", category: "System", level: .success)
                 
                 for url in panel.urls {
                     do {
                         try await romLibrary.addROM(from: url)
                     } catch {
-                        await LogManager.shared.log("❌ Failed to add ROM: \(error.localizedDescription)", category: "ROM", level: .error)
+                        LogManager.shared.log("❌ Failed to add ROM: \(error.localizedDescription)", category: "ROM", level: .error)
                     }
                 }
             } else {
-                await LogManager.shared.log("ℹ️ User cancelled file selection", category: "System", level: .info)
+                LogManager.shared.log("ℹ️ User cancelled file selection", category: "System", level: .info)
             }
         }
     }
@@ -356,13 +357,13 @@ struct MainEmulatorView: View {
     private func loadROM(from url: URL) {
         Task { @MainActor in
             do {
-                await LogManager.shared.log("🎮 Loading ROM from drag & drop: \(url.lastPathComponent)", category: "ROM", level: .info)
+                LogManager.shared.log("🎮 Loading ROM from drag & drop: \(url.lastPathComponent)", category: "ROM", level: .info)
                 
                 let filename = url.lastPathComponent
                 
                 // Check if ROM already exists in library
                 if let existingROM = romLibrary.roms.first(where: { $0.url.lastPathComponent == filename }) {
-                    await LogManager.shared.log("ℹ️ ROM already in library, starting playback", category: "ROM", level: .info)
+                    LogManager.shared.log("ℹ️ ROM already in library, starting playback", category: "ROM", level: .info)
                     playROM(existingROM)
                     return
                 }
@@ -375,7 +376,7 @@ struct MainEmulatorView: View {
                     playROM(rom)
                 }
             } catch {
-                await LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
+                LogManager.shared.log("❌ Failed to load ROM: \(error.localizedDescription)", category: "ROM", level: .error)
             }
         }
     }
@@ -393,24 +394,25 @@ private struct CategoryRow: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: category.systemImage)
-                    .font(.system(size: 14))
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundColor(isSelected ? .white : .purple)
                     .frame(width: 20)
                 
                 Text(category.rawValue)
-                    .font(.system(size: 13))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(isSelected ? .white : .primary)
                 
                 Spacer()
                 
                 if count > 0 {
                     Text("\(count)")
-                        .font(.caption2)
+                        .font(.system(size: 11, weight: .medium))
+                        .monospacedDigit()
                         .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.vertical, 7)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isSelected ? Color.purple : Color.clear)

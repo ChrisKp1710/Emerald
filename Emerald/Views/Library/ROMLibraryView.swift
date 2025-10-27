@@ -202,7 +202,7 @@ struct LibraryToolbar: View {
     
     private func openROMFilePicker() {
         Task { @MainActor in
-            await LogManager.shared.log("🔍 Opening ROM file picker...", category: "System", level: .info)
+            LogManager.shared.log("🔍 Opening ROM file picker...", category: "System", level: .info)
             
             let panel = NSOpenPanel()
             panel.title = "Select GBA ROM Files"
@@ -219,18 +219,18 @@ struct LibraryToolbar: View {
             let response = panel.runModal()
             
             if response == .OK {
-                await LogManager.shared.log("✅ User selected \(panel.urls.count) file(s)", category: "System", level: .success)
+                LogManager.shared.log("✅ User selected \(panel.urls.count) file(s)", category: "System", level: .success)
                 
                 for url in panel.urls {
                     do {
                         try await romLibrary.addROM(from: url)
                     } catch {
-                        await LogManager.shared.log("❌ Failed to add ROM: \(error.localizedDescription)", category: "ROM", level: .error)
+                        LogManager.shared.log("❌ Failed to add ROM: \(error.localizedDescription)", category: "ROM", level: .error)
                         print("Failed to add ROM from \(url.path): \(error)")
                     }
                 }
             } else {
-                await LogManager.shared.log("ℹ️ User cancelled file selection", category: "System", level: .info)
+                LogManager.shared.log("ℹ️ User cancelled file selection", category: "System", level: .info)
             }
         }
     }
@@ -385,7 +385,15 @@ struct ROMCardView: View {
             }
         }
         .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+        )
         .contentShape(RoundedRectangle(cornerRadius: 12))
     }
 }
