@@ -17,77 +17,97 @@ struct MainEmulatorView: View {
     @State private var showingFilePicker = false
     @State private var dragOver = false
     @State private var searchText = ""
-    @State private var showAdvancedLibrary = false // Toggle tra vista semplice e avanzata
-    
-    // Determina se mostrare library o emulator
-    private var showingLibrary: Bool {
-        emulatorState.currentROM == nil || !emulatorState.isRunning
-    }
+    @State private var showSidebar = false // Toggle sidebar nella vista unificata
     
     var body: some View {
         VStack(spacing: 0) {
-            // Toolbar sempre visibile
-            if showingLibrary {
-                libraryToolbar
-            } else {
+            if emulatorState.currentROM != nil {
+                // Modalità emulatore
                 emulatorToolbar
+                Divider()
+                emulatorView
+            } else {
+                // Modalità libreria unificata
+                libraryToolbar
+                Divider()
+                unifiedLibraryView
             }
             
-            Divider()
-            
-            // Contenuto principale: Switch tra vista semplice/avanzata/emulator
-            Group {
-                if showingLibrary {
-                    if showAdvancedLibrary {
-                        // Vista avanzata con sidebar e dettagli
-                        advancedLibraryView
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .leading).combined(with: .opacity)
-                            ))
-                    } else {
-                        // Vista semplice con griglia
-                        simpleLibraryView
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .leading).combined(with: .opacity),
-                                removal: .move(edge: .trailing).combined(with: .opacity)
-                            ))
-                    }
-                } else {
-                    // Vista emulatore
-                    emulatorContent
-                        .transition(.opacity)
-                }
-            }
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showAdvancedLibrary)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingLibrary)
-            
-            // Log console (toggleable)
+            // Console di debug
             if logManager.isVisible {
                 LogConsoleView()
             }
         }
+        .animation(.easeInOut(duration: 0.35), value: showSidebar)
+        .animation(.easeInOut(duration: 0.3), value: emulatorState.currentROM != nil)
         .onDrop(of: [.fileURL], isTargeted: $dragOver) { providers in
             handleDrop(providers: providers)
         }
+    }
+    
+    // MARK: - Unified Library View
+    
+    private var unifiedLibraryView: some View {
+        HStack(spacing: 0) {
+            // Sidebar (appare/scompare con animazione)
+            if showSidebar {
+                CategorySidebar()
+                    .frame(width: 220)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                
+                Divider()
+            }
+            
+            // Griglia ROM (sempre presente)
+            libraryGridContent
+        }
+    }
+    
+    private var libraryGridContent: some View {
+        ScrollView {
+            if romLibrary.filteredROMs.isEmpty {
+                emptyLibraryView
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 16)], spacing: 16) {
+                    ForEach(romLibrary.filteredROMs) { rom in
+                        ROMCardView(rom: rom)
+                            .onTapGesture {
+                                playROM(rom)
+                            }
+                    }
+                }
+                .padding()
+            }
+        }
+        .searchable(text: $romLibrary.searchText, prompt: "Search ROMs...")
+    }
+    
+    private var emptyLibraryView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "gamecontroller")
+                .font(.system(size: 64))
+                .foregroundColor(.secondary)
+            
+            Text("No ROMs Found")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Add GBA ROM files to get started")
+                .foregroundColor(.secondary)
+            
+            Button("Add ROM") {
+                openROMFilePicker()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Library Toolbar
     
     var libraryToolbar: some View {
         HStack {
-            // Back button se siamo in vista avanzata
-            if showAdvancedLibrary {
-                Button {
-                    withAnimation {
-                        showAdvancedLibrary = false
-                    }
-                } label: {
-                    Label("Back", systemImage: "chevron.left")
-                }
-            }
-            
-            Text(showAdvancedLibrary ? "Library" : "Library")
+            Text("Library")
                 .font(.title2)
                 .fontWeight(.bold)
             
@@ -97,7 +117,7 @@ struct MainEmulatorView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
-                TextField("Search ROMs...", text: $searchText)
+                TextField("Search ROMs...", text: $romLibrary.searchText)
                     .textFieldStyle(.plain)
                     .frame(width: 200)
             }
@@ -105,15 +125,15 @@ struct MainEmulatorView: View {
             .padding(.vertical, 4)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             
-            // Toggle vista semplice/avanzata
+            // Toggle sidebar
             Button {
-                withAnimation {
-                    showAdvancedLibrary.toggle()
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    showSidebar.toggle()
                 }
             } label: {
-                Image(systemName: showAdvancedLibrary ? "square.grid.2x2" : "sidebar.left")
+                Image(systemName: showSidebar ? "sidebar.left.slash" : "sidebar.left")
             }
-            .help(showAdvancedLibrary ? "Simple View" : "Advanced Library")
+            .help(showSidebar ? "Hide Sidebar" : "Show Sidebar")
             .keyboardShortcut("l", modifiers: .command)
             
             // Add ROM button
@@ -156,103 +176,28 @@ struct MainEmulatorView: View {
             }
             
             Spacer()
-            
-            // Emulator controls will go here
-            Text("") // Placeholder for symmetry
-                .frame(width: 100)
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
     }
     
-    // MARK: - Library Views
+    // MARK: - Emulator View
     
-    // Vista semplice: Griglia base
-    var simpleLibraryView: some View {
-        Group {
-            if romLibrary.roms.isEmpty {
-                emptyLibraryView
-            } else {
-                romGridView
-            }
-        }
-    }
-    
-    // Vista avanzata: Sidebar + dettagli
-    var advancedLibraryView: some View {
-        ROMLibraryView()
-            .environmentObject(romLibrary)
-            .environmentObject(settings)
-            .environmentObject(emulatorState)
-    }
-    
-    var emptyLibraryView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "gamecontroller.fill")
-                .font(.system(size: 72))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 8) {
-                Text("No ROMs Found")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Add GBA ROM files to get started")
-                    .foregroundColor(.secondary)
-            }
-            
-            Button("Add ROM") {
-                openROMFilePicker()
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    var romGridView: some View {
-        ScrollView {
-            LazyVGrid(columns: [
-                GridItem(.adaptive(minimum: 200, maximum: 250), spacing: 16)
-            ], spacing: 16) {
-                ForEach(filteredROMs) { rom in
-                    ROMCardView(rom: rom)
-                        .onTapGesture {
-                            playROM(rom)
-                        }
-                }
-            }
-            .padding()
-        }
-    }
-    
-    private var filteredROMs: [GBARom] {
-        if searchText.isEmpty {
-            return romLibrary.roms
-        } else {
-            return romLibrary.roms.filter { rom in
-                rom.title.localizedCaseInsensitiveContains(searchText) ||
-                rom.gameCode.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-    }
-    
-    // MARK: - Emulator Content
-    
-    var emulatorContent: some View {
+    private var emulatorView: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background
+                // Background nero
                 Color.black
                     .ignoresSafeArea()
                 
-                // Emulator screen
+                // Schermo emulatore
                 EmulatorScreenView()
                     .aspectRatio(240.0/160.0, contentMode: .fit)
                     .scaleEffect(settings.displayScale)
                     .clipped()
                 
-                // Drag overlay
+                // Overlay drag & drop
                 if dragOver {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.accentColor, lineWidth: 2)
