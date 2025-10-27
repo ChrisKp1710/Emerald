@@ -49,18 +49,113 @@ struct MainEmulatorView: View {
     
     private var unifiedLibraryView: some View {
         HStack(spacing: 0) {
-            // Sidebar (appare/scompare con animazione)
+            // Sidebar compatta (appare/scompare)
             if showSidebar {
-                CategorySidebar()
-                    .frame(width: 220)
+                compactSidebar
+                    .frame(width: 200)
                     .transition(.move(edge: .leading).combined(with: .opacity))
-                
-                Divider()
             }
             
             // Griglia ROM (sempre presente)
             libraryGridContent
         }
+    }
+    
+    // Sidebar compatta stile Apple
+    private var compactSidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            Text("Categories")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+            
+            // Lista categorie
+            ScrollView {
+                VStack(spacing: 2) {
+                    ForEach(ROMCategory.allCases, id: \.self) { category in
+                        let count = romLibrary.roms.filter { $0.category == category }.count
+                        
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if romLibrary.selectedCategories.contains(category) {
+                                    romLibrary.selectedCategories.remove(category)
+                                } else {
+                                    romLibrary.selectedCategories.insert(category)
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: category.systemImage)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(romLibrary.selectedCategories.contains(category) ? .white : .purple)
+                                    .frame(width: 20)
+                                
+                                Text(category.rawValue)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(romLibrary.selectedCategories.contains(category) ? .white : .primary)
+                                
+                                Spacer()
+                                
+                                if count > 0 {
+                                    Text("\(count)")
+                                        .font(.caption2)
+                                        .foregroundColor(romLibrary.selectedCategories.contains(category) ? .white.opacity(0.8) : .secondary)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(romLibrary.selectedCategories.contains(category) ? Color.purple : Color.clear)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    // All Games
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            romLibrary.selectedCategories.removeAll()
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "gamecontroller")
+                                .font(.system(size: 14))
+                                .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white : .blue)
+                                .frame(width: 20)
+                            
+                            Text("All Games")
+                                .font(.system(size: 13))
+                                .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white : .primary)
+                            
+                            Spacer()
+                            
+                            Text("\(romLibrary.roms.count)")
+                                .font(.caption2)
+                                .foregroundColor(romLibrary.selectedCategories.isEmpty ? .white.opacity(0.8) : .secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(romLibrary.selectedCategories.isEmpty ? Color.blue : Color.clear)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 8)
+            }
+        }
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(.leading, 8)
+        .padding(.vertical, 8)
     }
     
     private var libraryGridContent: some View {
@@ -125,15 +220,15 @@ struct MainEmulatorView: View {
             .padding(.vertical, 4)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             
-            // Toggle sidebar
+            // Toggle sidebar (icona cambia: griglia quando sidebar aperta, sidebar quando chiusa)
             Button {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                     showSidebar.toggle()
                 }
             } label: {
-                Image(systemName: showSidebar ? "sidebar.left.slash" : "sidebar.left")
+                Image(systemName: showSidebar ? "square.grid.2x2" : "sidebar.left")
             }
-            .help(showSidebar ? "Hide Sidebar" : "Show Sidebar")
+            .help(showSidebar ? "Simple Grid View" : "Show Advanced Library")
             .keyboardShortcut("l", modifiers: .command)
             
             // Add ROM button

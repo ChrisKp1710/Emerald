@@ -133,7 +133,7 @@ enum ROMCategory: String, CaseIterable, Codable {
         case .platform: return "square.stack.3d.up"
         case .puzzle: return "puzzlepiece"
         case .racing: return "car"
-        case .rpg: return "sword"
+        case .rpg: return "shield.lefthalf.filled" // RPG icon (sword alternativa: shield/wand.and.stars)
         case .shooter: return "scope"
         case .simulation: return "gear"
         case .sports: return "sportscourt"
