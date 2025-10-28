@@ -18,7 +18,8 @@ import OSLog
 /// - Zero-cost abstractions with @inlinable
 @available(macOS 13.0, *)
 final class GBAARM7TDMI {
-    private let logger = Logger(subsystem: "com.emerald.gba", category: "CPU")
+    // Made internal so extensions can access it
+    let logger = Logger(subsystem: "com.emerald.gba", category: "CPU")
     
     // MARK: - CPU State
     
@@ -42,7 +43,8 @@ final class GBAARM7TDMI {
     // MARK: - Registers
     
     /// General purpose registers (R0-R15)
-    private var registers = [UInt32](repeating: 0, count: 16)
+    /// Made internal so Thumb extensions can access it
+    var registers = [UInt32](repeating: 0, count: 16)
     
     /// Banked registers for different modes
     private var bankedRegisters: [Mode: [UInt32]] = [
@@ -54,16 +56,18 @@ final class GBAARM7TDMI {
     ]
     
     /// Current Program Status Register
-    private var cpsr: UInt32 = 0x13 // Start in supervisor mode
+    /// Made internal so Thumb extensions can access it
+    var cpsr: UInt32 = 0x13 // Start in supervisor mode
     
     /// Saved Program Status Registers for different modes
-    private var savedPSR: [Mode: UInt32] = [:]
+    internal var savedPSR: [Mode: UInt32] = [:]
     
     /// Current instruction set
     private var instructionSet: InstructionSet = .arm
     
     /// Memory management unit reference
-    private weak var memory: GBAMemoryManager?
+    /// Made internal so Thumb extensions can access it
+    weak var memory: GBAMemoryManager?
     
     /// Interrupt controller reference
     weak var interruptController: GBAInterruptController?
@@ -649,7 +653,6 @@ final class GBAARM7TDMI {
             }
         } else {
             // Write CPSR
-            let oldCPSR = cpsr
             cpsr = (cpsr & ~mask) | (value & mask)
             
             // If mode changed, handle register banking
@@ -860,93 +863,16 @@ final class GBAARM7TDMI {
     }
     
     // MARK: - Thumb Instruction Execution
-    
-    private func executeThumbInstruction(_ instruction: UInt16) -> Int {
-        // Simplified Thumb implementation
-        // In a full implementation, this would decode and execute Thumb instructions
-        
-        let opcode = (instruction >> 13) & 0x7
-        
-        switch opcode {
-        case 0, 1: // Shift operations
-            return executeThumbShift(instruction)
-        case 2: // Add/subtract
-            return executeThumbAddSubtract(instruction)
-        case 3: // Move/compare/add/subtract immediate
-            return executeThumbImmediate(instruction)
-        case 4: // ALU operations
-            return executeThumbALU(instruction)
-        case 5: // Hi register operations/branch exchange
-            return executeThumbHiReg(instruction)
-        case 6: // PC-relative load
-            return executeThumbPCLoad(instruction)
-        case 7: // Load/store with register offset
-            return executeThumbLoadStoreReg(instruction)
-        default:
-            logger.warning("Unknown Thumb instruction: \(String(format: "%04X", instruction))")
-            return 1
-        }
-    }
-    
-    private func executeThumbShift(_ instruction: UInt16) -> Int {
-        let op = (instruction >> 11) & 0x3
-        let offset5 = (instruction >> 6) & 0x1F
-        let rs = Int((instruction >> 3) & 0x7)
-        let rd = Int(instruction & 0x7)
-        
-        let value = registers[rs]
-        var result: UInt32
-        
-        switch op {
-        case 0: // LSL
-            result = value << offset5
-        case 1: // LSR
-            result = offset5 == 0 ? 0 : value >> offset5
-        case 2: // ASR
-            result = UInt32(Int32(value) >> (offset5 == 0 ? 31 : Int32(offset5)))
-        default:
-            result = value
-        }
-        
-        registers[rd] = result
-        updateFlags(result: result, operation: 0)
-        
-        return 1
-    }
-    
-    private func executeThumbAddSubtract(_ instruction: UInt16) -> Int {
-        // Simplified implementation
-        return 1
-    }
-    
-    private func executeThumbImmediate(_ instruction: UInt16) -> Int {
-        // Simplified implementation
-        return 1
-    }
-    
-    private func executeThumbALU(_ instruction: UInt16) -> Int {
-        // Simplified implementation
-        return 1
-    }
-    
-    private func executeThumbHiReg(_ instruction: UInt16) -> Int {
-        // Simplified implementation
-        return 1
-    }
-    
-    private func executeThumbPCLoad(_ instruction: UInt16) -> Int {
-        // Simplified implementation
-        return 1
-    }
-    
-    private func executeThumbLoadStoreReg(_ instruction: UInt16) -> Int {
-        // Simplified implementation
-        return 1
-    }
+    // Note: All Thumb instruction implementations are in separate files:
+    // - ThumbInstructions.swift (main dispatcher)
+    // - ThumbShiftArithmetic.swift (Format 1, 2, 3)
+    // - ThumbALU.swift (Format 4, 5)
+    // - ThumbLoadStore.swift (Format 6, 7, 8, 9, 10, 14)
+    // - ThumbStackBranch.swift (Format 11, 12, 13, 15, 17, 18, 19)
     
     // MARK: - Helper Methods
     
-    private func checkCondition(_ condition: UInt32) -> Bool {
+    internal func checkCondition(_ condition: UInt32) -> Bool {
         let n = (cpsr >> 31) & 1 != 0  // Negative
         let z = (cpsr >> 30) & 1 != 0  // Zero
         let c = (cpsr >> 29) & 1 != 0  // Carry
@@ -973,7 +899,8 @@ final class GBAARM7TDMI {
         }
     }
     
-    private func updateFlags(result: UInt32, operation: Int) {
+    // Made internal so Thumb extensions can access it
+    func updateFlags(result: UInt32, operation: Int) {
         // Update N flag (bit 31)
         if result & 0x80000000 != 0 {
             cpsr |= 0x80000000
@@ -1030,7 +957,7 @@ final class GBAARM7TDMI {
         }
     }
     
-    private func flushPipeline() {
+    internal func flushPipeline() {
         pipelineValid = [Bool](repeating: false, count: 3)
         pipeline = [UInt32](repeating: 0, count: 3)
     }
