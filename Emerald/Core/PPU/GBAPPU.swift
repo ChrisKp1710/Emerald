@@ -152,12 +152,12 @@ final class GBAPPU {
             interrupts?.requestInterrupt(.vblank) // VBlank interrupt
         }
         
-        logger.debug("Entered VBlank")
+        // logger.debug("Entered VBlank") // Too verbose
     }
     
     private func exitVBlank() {
         dispstat &= ~0x0001 // Clear VBlank flag
-        logger.debug("Exited VBlank")
+        // logger.debug("Exited VBlank") // Too verbose
     }
     
     private func enterHBlank() {

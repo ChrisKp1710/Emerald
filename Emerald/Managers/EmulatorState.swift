@@ -28,7 +28,7 @@ final class EmulatorState: ObservableObject {
     // MARK: - Core Components
     private var cpu: GBAARM7TDMI?
     private var memory: GBAMemoryManager?
-    private var ppu: GBAPictureProcessingUnit?
+    private var ppu: GBAPPU?  // Nuova PPU modulare
     private var apu: GBAAudioProcessingUnit?
     private var cartridge: GBACartridge?
     private var timerSystem: GBATimerSystem?
@@ -45,6 +45,7 @@ final class EmulatorState: ObservableObject {
     
     // MARK: - Performance Monitoring
     private var frameCounter = 0
+    private var frameCount = 0  // Per il logging debug
     private var lastFrameTime = CACurrentMediaTime()
     
     init() {
@@ -198,7 +199,7 @@ final class EmulatorState: ObservableObject {
             romChecksum: currentROM?.checksum ?? "",
             cpuState: cpu.saveState(),
             memoryState: memory.saveState(),
-            ppuState: ppu?.saveState(),
+            ppuState: nil, // TODO: Implement ppu.saveState()
             apuState: apu?.saveState()
         )
         
@@ -216,9 +217,10 @@ final class EmulatorState: ObservableObject {
         cpu?.loadState(saveState.cpuState)
         memory?.loadState(saveState.memoryState)
         
-        if let ppuState = saveState.ppuState {
-            ppu?.loadState(ppuState)
-        }
+        // TODO: Implement ppu.loadState()
+        // if let ppuState = saveState.ppuState {
+        //     ppu?.loadState(ppuState)
+        // }
         
         if let apuState = saveState.apuState {
             apu?.loadState(apuState)
@@ -252,15 +254,21 @@ final class EmulatorState: ObservableObject {
         memory = GBAMemoryManager(cartridge: cartridge)
         LogManager.shared.log("✅ Memory Manager ready", category: "Memory", level: .success)
         
+        // Initialize interrupt controller FIRST (needed by other components)
+        interruptController = GBAInterruptController()
+        LogManager.shared.log("Interrupt controller initialized", category: "System", level: .info)
+        
         LogManager.shared.log("Initializing CPU (ARM7TDMI)...", category: "CPU", level: .info)
         // Initialize CPU
         cpu = GBAARM7TDMI(memory: memory!)
         LogManager.shared.log("✅ CPU ready", category: "CPU", level: .success)
         
         LogManager.shared.log("Initializing PPU (Graphics)...", category: "PPU", level: .info)
-        // Initialize PPU
-        ppu = GBAPictureProcessingUnit(memory: memory!, renderer: metalRenderer)
-        LogManager.shared.log("⚠️ PPU initialized (stub - no rendering yet)", category: "PPU", level: .warning)
+        // Initialize new modular PPU
+        ppu = GBAPPU()
+        ppu?.setMemory(memory!)
+        ppu?.setInterrupts(interruptController!)
+        LogManager.shared.log("✅ PPU ready with Mode 3/4/5 support", category: "PPU", level: .success)
         
         LogManager.shared.log("Initializing APU (Audio)...", category: "Audio", level: .info)
         // Initialize APU
@@ -272,9 +280,6 @@ final class EmulatorState: ObservableObject {
         
         // Initialize DMA controller
         dmaController = GBADMAController(memory: memory!)
-        
-        // Initialize interrupt controller
-        interruptController = GBAInterruptController()
         
         // Connect components
         connectComponents()
@@ -294,7 +299,7 @@ final class EmulatorState: ObservableObject {
         // Set up component interconnections
         cpu.interruptController = interruptController
         memory.dmaController = dmaController
-        ppu.interruptController = interruptController
+        ppu.setInterrupts(interruptController) // Use setInterrupts method
         timerSystem.interruptController = interruptController
         dmaController.interruptController = interruptController
     }
@@ -332,21 +337,50 @@ final class EmulatorState: ObservableObject {
         // Execute one frame worth of cycles (approximately 280,896 cycles)
         let cyclesPerFrame = 280_896
         var cyclesExecuted = 0
+        var instructionsExecuted = 0
         
-        while cyclesExecuted < cyclesPerFrame && isRunning && !isPaused {
+        // Safety limit to prevent infinite loops
+        let maxInstructionsPerFrame = 100_000
+        
+        while cyclesExecuted < cyclesPerFrame && isRunning && !isPaused && instructionsExecuted < maxInstructionsPerFrame {
             // Execute CPU instruction
             let cycles = cpu?.executeInstruction() ?? 1
             cyclesExecuted += cycles
+            instructionsExecuted += 1
+            
+            // Update PPU (nuova implementazione)
+            ppu?.step(cycles: cycles)
             
             // Update other components
-            ppu?.update(cycles: cycles)
             apu?.update(cycles: cycles)
             timerSystem?.update(cycles: cycles)
             dmaController?.update(cycles: cycles)
         }
         
-        // Render frame
-        await ppu?.renderFrame()
+        // Debug: Warn if we hit the safety limit
+        if instructionsExecuted >= maxInstructionsPerFrame {
+            logger.warning("⚠️ Safety limit hit: \(instructionsExecuted) instructions")
+        }
+        
+        // Transfer framebuffer to Metal renderer
+        if let framebuffer = ppu?.framebuffer {
+            metalRenderer?.updateTexture(with: framebuffer)
+            
+            // Debug: Log first frame rendering
+            if self.frameCount == 0 {
+                logger.debug("🖼️ First frame rendered: \(framebuffer.count) pixels")
+            }
+        } else {
+            if self.frameCount == 0 {
+                logger.warning("⚠️ No framebuffer available from PPU")
+            }
+        }
+        
+        // Log stats every 60 frames
+        self.frameCount += 1
+        if self.frameCount % 60 == 0 {
+            logger.debug("📊 Frame \(self.frameCount): \(instructionsExecuted) instructions, \(cyclesExecuted) cycles")
+        }
     }
     
     private func updateFramerate() {

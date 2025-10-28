@@ -67,6 +67,27 @@ final class MetalRenderer {
         )
     }
     
+    // Overload for [UInt32] framebuffer (PPU format)
+    func updateTexture(with framebuffer: [UInt32]) {
+        guard let texture = texture else { return }
+        
+        framebuffer.withUnsafeBytes { bufferPointer in
+            guard let baseAddress = bufferPointer.baseAddress else { return }
+            
+            let region = MTLRegion(
+                origin: MTLOrigin(x: 0, y: 0, z: 0),
+                size: MTLSize(width: 240, height: 160, depth: 1)
+            )
+            
+            texture.replace(
+                region: region,
+                mipmapLevel: 0,
+                withBytes: baseAddress,
+                bytesPerRow: 240 * 4 // 4 bytes per pixel (RGBA)
+            )
+        }
+    }
+    
     func getTexture() -> MTLTexture? {
         return texture
     }
