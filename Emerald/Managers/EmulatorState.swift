@@ -24,6 +24,7 @@ final class EmulatorState: ObservableObject {
     @Published var emulationSpeed: Double = 1.0
     @Published var audioEnabled = true
     @Published var volume: Double = 0.8
+    @Published var currentFramebuffer: [UInt32] = []
     
     // MARK: - Core Components
     private var cpu: GBAARM7TDMI?
@@ -65,6 +66,10 @@ final class EmulatorState: ObservableObject {
     }
     
     // MARK: - Public Interface
+    
+    func getMetalRenderer() -> MetalRenderer? {
+        return metalRenderer
+    }
     
     func loadROM(_ rom: GBARom) async throws {
         let log = LogManager.shared
@@ -362,24 +367,23 @@ final class EmulatorState: ObservableObject {
             logger.warning("⚠️ Safety limit hit: \(instructionsExecuted) instructions")
         }
         
-        // Transfer framebuffer to Metal renderer
+        // Transfer framebuffer to renderer
         if let framebuffer = ppu?.framebuffer {
             metalRenderer?.updateTexture(with: framebuffer)
             
+            // Pubblica il framebuffer per EmulatorScreenView
+            self.currentFramebuffer = framebuffer
+            
             // Debug: Log first frame rendering
             if self.frameCount == 0 {
-                logger.debug("🖼️ First frame rendered: \(framebuffer.count) pixels")
-            }
-        } else {
-            if self.frameCount == 0 {
-                logger.warning("⚠️ No framebuffer available from PPU")
+                logger.debug("🖼️ First frame rendered successfully")
             }
         }
         
-        // Log stats every 60 frames
+        // Update frame counter - log only every 300 frames (5 seconds)
         self.frameCount += 1
-        if self.frameCount % 60 == 0 {
-            logger.debug("📊 Frame \(self.frameCount): \(instructionsExecuted) instructions, \(cyclesExecuted) cycles")
+        if self.frameCount % 300 == 0 {
+            logger.info("📊 Frame \(self.frameCount) - Emulator running")
         }
     }
     

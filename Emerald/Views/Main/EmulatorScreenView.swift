@@ -9,18 +9,27 @@ import SwiftUI
 import MetalKit
 
 struct EmulatorScreenView: View {
-    @EnvironmentObject private var emulatorState: EmulatorState
-    @EnvironmentObject private var settings: EmulatorSettings
+    @EnvironmentObject var emulatorState: EmulatorState
+    @State private var metalRenderer: EmulatorMetalRenderer?
     
     var body: some View {
-        MetalView()
-            .aspectRatio(240.0/160.0, contentMode: .fit)
-            .background(Color.black)
+        GeometryReader { geometry in
+            MetalView(renderer: $metalRenderer)
+                .aspectRatio(240.0 / 160.0, contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black)
+                .onChange(of: emulatorState.currentFramebuffer) { _, newFramebuffer in
+                    // Aggiorna il renderer quando il framebuffer cambia
+                    if !newFramebuffer.isEmpty {
+                        metalRenderer?.updateFramebuffer(data: newFramebuffer)
+                    }
+                }
+        }
     }
-}
 
 struct MetalView: NSViewRepresentable {
     @EnvironmentObject private var settings: EmulatorSettings
+    @EnvironmentObject private var emulatorState: EmulatorState
     
     func makeNSView(context: Context) -> MTKView {
         let metalView = MTKView()
@@ -35,9 +44,10 @@ struct MetalView: NSViewRepresentable {
         metalView.colorPixelFormat = .bgra8Unorm
         metalView.framebufferOnly = false
         
-        // Setup renderer
-        let renderer = EmulatorMetalRenderer(device: device, view: metalView)
-        metalView.delegate = renderer
+        // Use the EmulatorState's metal renderer
+        if let renderer = emulatorState.getMetalRenderer() {
+            metalView.delegate = renderer
+        }
         
         // Configure rendering settings
         metalView.enableSetNeedsDisplay = false
@@ -173,4 +183,5 @@ extension EmulatorMetalRenderer: MTKViewDelegate {
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
+}
 }
