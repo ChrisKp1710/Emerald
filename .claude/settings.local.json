@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.coranac.com)",
+      "WebFetch(domain:mgba.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:coranac.com)",
+      "Bash(test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
