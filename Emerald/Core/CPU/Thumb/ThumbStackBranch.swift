@@ -153,29 +153,26 @@ extension GBAARM7TDMI {
     /// Encoding: 11011111[value8:8]
     @inlinable
     internal func executeThumbSWI(_ instruction: UInt16) -> Int {
-        let value8 = instruction & 0xFF
-        
-        // Save current CPSR to SPSR_svc
-        let oldCPSR = cpsr
-        
-        // Switch to Supervisor mode
-        let newMode: UInt32 = 0x13 // Supervisor mode
-        cpsr = (cpsr & ~0x1F) | newMode
+        // In Thumb mode: SWI number is in bits [7:0]
+        let swiNumber = UInt8(instruction & 0xFF)
+
+        // Use BIOS HLE if available
+        if let bios = self.bios {
+            logger.debug("Thumb SWI 0x\(String(format: "%02X", swiNumber)) - Using BIOS HLE")
+            return bios.handleSWI(swiNumber)
+        }
+
+        // Fallback: Old behavior (jump to BIOS at 0x00000008)
+        logger.warning("⚠️ BIOS HLE not available! Falling back to BIOS jump (will likely fail)")
+
+        savedPSR[.supervisor] = cpsr
+        cpsr = (cpsr & ~0x1F) | 0x13 // Supervisor mode
         cpsr |= 0x80 // Disable IRQ
-        
-        // Save CPSR to SPSR
-        savedPSR[.supervisor] = oldCPSR
-        
-        // Save return address (current PC)
         registers[14] = registers[15] - 2 // Thumb instruction is 2 bytes
-        
-        // Jump to SWI vector
         registers[15] = 0x00000008
-        cpsr &= ~0x20 // Clear Thumb bit (SWI handler is ARM)
-        
+        cpsr &= ~0x20 // Clear Thumb bit
         flushPipeline()
-        logger.debug("Thumb SWI executed: \(value8)")
-        
+
         return 3
     }
     

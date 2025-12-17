@@ -10,7 +10,9 @@
       "WebFetch(domain:mgba.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:coranac.com)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(swiftc:*)"
     ],
     "deny": [],
     "ask": []

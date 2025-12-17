@@ -406,21 +406,25 @@ extension GBAARM7TDMI {
     
     internal func executeSWI(_ instruction: UInt32) -> Int {
         // Software Interrupt
-        let swiNumber = (instruction >> 16) & 0xFF
-        
-        // Save current mode and switch to supervisor mode
+        // In ARM mode: SWI number is in bits [23:16]
+        let swiNumber = UInt8((instruction >> 16) & 0xFF)
+
+        // Use BIOS HLE if available
+        if let bios = self.bios {
+            logger.debug("SWI 0x\(String(format: "%02X", swiNumber)) - Using BIOS HLE")
+            return bios.handleSWI(swiNumber)
+        }
+
+        // Fallback: Old behavior (jump to BIOS at 0x00000008)
+        // This should not happen in normal operation
+        logger.warning("⚠️ BIOS HLE not available! Falling back to BIOS jump (will likely fail)")
+
         savedPSR[.supervisor] = cpsr
         cpsr = (cpsr & 0xFFFFFF00) | 0x13 // Supervisor mode
-        
-        // Save return address
         registers[14] = registers[15] - 4
-        
-        // Jump to SWI vector
         registers[15] = 0x00000008
-        
         flushPipeline()
-        logger.debug("SWI executed: \(swiNumber)")
-        
+
         return 3
     }
     

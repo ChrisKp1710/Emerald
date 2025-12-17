@@ -71,7 +71,16 @@ final class GBAARM7TDMI {
     
     /// Interrupt controller reference
     weak var interruptController: GBAInterruptController?
-    
+
+    /// BIOS HLE reference
+    weak var bios: GBABIOS?
+
+    /// CPU halt state (for IntrWait/VBlankIntrWait)
+    var halted: Bool = false
+
+    /// CPU stop state (for Stop function)
+    var stopped: Bool = false
+
     // MARK: - Pipeline
     
     /// 3-stage pipeline: Fetch, Decode, Execute

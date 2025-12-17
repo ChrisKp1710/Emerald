@@ -26,6 +26,7 @@ struct EmulatorScreenView: View {
                 }
         }
     }
+}
 
 struct MetalView: NSViewRepresentable {
     @EnvironmentObject private var settings: EmulatorSettings
@@ -183,5 +184,4 @@ extension EmulatorMetalRenderer: MTKViewDelegate {
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
-}
 }

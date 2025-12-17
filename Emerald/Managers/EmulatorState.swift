@@ -267,7 +267,13 @@ final class EmulatorState: ObservableObject {
         // Initialize CPU
         cpu = GBAARM7TDMI(memory: memory!)
         LogManager.shared.log("✅ CPU ready", category: "CPU", level: .success)
-        
+
+        LogManager.shared.log("Initializing BIOS HLE...", category: "BIOS", level: .info)
+        // Initialize BIOS High-Level Emulation
+        let bios = GBABIOS(cpu: cpu!, memory: memory!, interrupts: interruptController!)
+        cpu?.bios = bios
+        LogManager.shared.log("✅ BIOS HLE ready - Software interrupts enabled", category: "BIOS", level: .success)
+
         LogManager.shared.log("Initializing PPU (Graphics)...", category: "PPU", level: .info)
         // Initialize new modular PPU
         ppu = GBAPPU()
