@@ -287,13 +287,14 @@ extension GBABIOS {
             // Fill mode
             let fillValue = memory.read32(address: source)
             for i in 0..<count {
-                memory.write32(address: dest + i * 4, value: fillValue)
+                let offset = UInt32(i) * 4
+                memory.write32(address: dest + offset, value: fillValue)
             }
         } else {
             // Copy mode - copy 8 words at a time (simulates LDMIA/STMIA)
-            for i in stride(from: 0, to: count, by: 8) {
+            for i in stride(from: 0, to: Int(count), by: 8) {
                 for j in 0..<8 {
-                    guard i + j < count else { break }
+                    guard i + j < Int(count) else { break }
                     let offset = UInt32(i + j) * 4
                     let value = memory.read32(address: source + offset)
                     memory.write32(address: dest + offset, value: value)

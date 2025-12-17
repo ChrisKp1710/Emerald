@@ -11,17 +11,19 @@ import MetalKit
 struct EmulatorScreenView: View {
     @EnvironmentObject var emulatorState: EmulatorState
     @State private var metalRenderer: EmulatorMetalRenderer?
-    
+
     var body: some View {
         GeometryReader { geometry in
-            MetalView(renderer: $metalRenderer)
+            MetalView(metalRenderer: $metalRenderer)
                 .aspectRatio(240.0 / 160.0, contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black)
                 .onChange(of: emulatorState.currentFramebuffer) { _, newFramebuffer in
                     // Aggiorna il renderer quando il framebuffer cambia
                     if !newFramebuffer.isEmpty {
-                        metalRenderer?.updateFramebuffer(data: newFramebuffer)
+                        // Convert [UInt32] to Data
+                        let data = Data(bytes: newFramebuffer, count: newFramebuffer.count * MemoryLayout<UInt32>.stride)
+                        metalRenderer?.updateFramebuffer(data)
                     }
                 }
         }
@@ -30,30 +32,33 @@ struct EmulatorScreenView: View {
 
 struct MetalView: NSViewRepresentable {
     @EnvironmentObject private var settings: EmulatorSettings
-    @EnvironmentObject private var emulatorState: EmulatorState
-    
+    @Binding var metalRenderer: EmulatorMetalRenderer?
+
     func makeNSView(context: Context) -> MTKView {
         let metalView = MTKView()
-        
+
         // Setup Metal device
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Metal device not available")
         }
-        
+
         metalView.device = device
         metalView.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         metalView.colorPixelFormat = .bgra8Unorm
         metalView.framebufferOnly = false
-        
-        // Use the EmulatorState's metal renderer
-        if let renderer = emulatorState.getMetalRenderer() {
-            metalView.delegate = renderer
+
+        // Create and set the renderer
+        let renderer = EmulatorMetalRenderer(device: device, view: metalView)
+        metalView.delegate = renderer
+        // Store the renderer in the binding so parent can update it
+        DispatchQueue.main.async {
+            self.metalRenderer = renderer
         }
-        
+
         // Configure rendering settings
         metalView.enableSetNeedsDisplay = false
         metalView.preferredFramesPerSecond = settings.enableVSync ? 60 : 0
-        
+
         return metalView
     }
     
