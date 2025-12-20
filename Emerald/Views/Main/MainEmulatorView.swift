@@ -20,19 +20,24 @@ struct MainEmulatorView: View {
     @State private var showSidebar = false // Toggle sidebar nella vista unificata
     
     var body: some View {
-        VStack(spacing: 0) {
-            if emulatorState.currentROM != nil {
+        let showEmulator = emulatorState.currentROM != nil
+        let _ = print("🔄 DEBUG: body re-evaluated - showEmulator: \(showEmulator), ROM: \(emulatorState.currentROM?.title ?? "nil")")
+        
+        return VStack(spacing: 0) {
+            if showEmulator {
                 // Modalità emulatore
                 let _ = print("🎮 DEBUG: Showing emulator view for ROM: \(emulatorState.currentROM!.title)")
                 emulatorToolbar
                 Divider()
                 emulatorView
+                    .id("emulator-\(emulatorState.currentROM!.id.uuidString)")
             } else {
                 // Modalità libreria unificata
                 let _ = print("📚 DEBUG: Showing library view (currentROM is nil)")
                 libraryToolbar
                 Divider()
                 unifiedLibraryView
+                    .id("library")
             }
             
             // Console di debug
@@ -40,8 +45,9 @@ struct MainEmulatorView: View {
                 LogConsoleView()
             }
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showSidebar)
-        .animation(.easeInOut(duration: 0.25), value: emulatorState.currentROM != nil)
+        // REMOVED animations temporarily to debug
+        // .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showSidebar)
+        // .animation(.easeInOut(duration: 0.25), value: showEmulator)
         .onDrop(of: [.fileURL], isTargeted: $dragOver) { providers in
             handleDrop(providers: providers)
         }

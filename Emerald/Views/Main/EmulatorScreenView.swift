@@ -13,7 +13,9 @@ struct EmulatorScreenView: View {
     @State private var metalRenderer: EmulatorMetalRenderer?
 
     var body: some View {
+        let _ = print("🎨 DEBUG: EmulatorScreenView body is being rendered")
         GeometryReader { geometry in
+            let _ = print("🎨 DEBUG: GeometryReader size: \(geometry.size)")
             MetalView(metalRenderer: $metalRenderer, emulatorState: emulatorState)
                 .aspectRatio(240.0 / 160.0, contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -28,12 +30,15 @@ struct MetalView: NSViewRepresentable {
     let emulatorState: EmulatorState
 
     func makeNSView(context: Context) -> MTKView {
+        print("🎨 DEBUG: makeNSView called - Creating MTKView")
         let metalView = MTKView()
 
         // Setup Metal device
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Metal device not available")
         }
+        
+        print("🎨 DEBUG: Metal device created: \(device.name)")
 
         metalView.device = device
         metalView.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -44,30 +49,30 @@ struct MetalView: NSViewRepresentable {
         let renderer = EmulatorMetalRenderer(device: device, view: metalView)
         metalView.delegate = renderer
 
-        // Store the renderer in the binding so parent can update it
+        // Set up callback to update framebuffer from emulator IMMEDIATELY
+        var frameCount = 0
+        emulatorState.setFrameUpdateCallback { [weak renderer] framebuffer in
+            frameCount += 1
+
+            // Debug: Log first few frames
+            if frameCount <= 3 {
+                let firstPixels = Array(framebuffer.prefix(5))
+                print("🖼️ Frame \(frameCount) callback - First 5 pixels: \(firstPixels.map { String(format: "0x%08X", $0) })")
+            }
+
+            // Use withUnsafeBytes to avoid copying the entire array
+            framebuffer.withUnsafeBytes { bufferPointer in
+                guard let baseAddress = bufferPointer.baseAddress else { return }
+                let data = Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: baseAddress),
+                              count: framebuffer.count * MemoryLayout<UInt32>.stride,
+                              deallocator: .none)
+                renderer?.updateFramebuffer(data)
+            }
+        }
+
+        // Store the renderer in the binding (async is ok here)
         DispatchQueue.main.async {
             self.metalRenderer = renderer
-
-            // Set up callback to update framebuffer from emulator
-            var frameCount = 0
-            emulatorState.setFrameUpdateCallback { [weak renderer] framebuffer in
-                frameCount += 1
-
-                // Debug: Log first few frames
-                if frameCount <= 3 {
-                    let firstPixels = Array(framebuffer.prefix(5))
-                    print("🖼️ Frame \(frameCount) callback - First 5 pixels: \(firstPixels.map { String(format: "0x%08X", $0) })")
-                }
-
-                // Use withUnsafeBytes to avoid copying the entire array
-                framebuffer.withUnsafeBytes { bufferPointer in
-                    guard let baseAddress = bufferPointer.baseAddress else { return }
-                    let data = Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: baseAddress),
-                                  count: framebuffer.count * MemoryLayout<UInt32>.stride,
-                                  deallocator: .none)
-                    renderer?.updateFramebuffer(data)
-                }
-            }
         }
 
         // Configure rendering settings

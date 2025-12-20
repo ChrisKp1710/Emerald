@@ -42,7 +42,7 @@ struct EmeraldApp: App {
                 .focusedEmulatorSettings(settings)
                 .frame(minWidth: 800, minHeight: 600)
         }
-        .windowResizability(.contentSize)
+        .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
         .commands {
             EmulatorMenuCommands()

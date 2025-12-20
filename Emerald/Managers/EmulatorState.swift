@@ -114,15 +114,21 @@ final class EmulatorState: ObservableObject {
             throw error
         }
         
-        // Initialize components with new cartridge
+        // IMPORTANT: Set currentROM FIRST to trigger UI update
+        await MainActor.run {
+            self.objectWillChange.send() // Force SwiftUI update
+            currentROM = rom
+            log.log("⚠️ DEBUG: currentROM set to: \(rom.title) - UI should switch now", category: "System", level: .info)
+            log.log("⚠️ DEBUG: currentROM is nil? \(currentROM == nil ? "YES" : "NO")", category: "System", level: .info)
+        }
+        
+        // Then initialize components with new cartridge
         log.log("🔧 Initializing emulator components...", category: "System", level: .info)
         try await initializeWithCartridge(cartridge!)
         log.log("✅ Components initialized", category: "System", level: .success)
         
-        currentROM = rom
         log.log("🎉 ROM loaded successfully!", category: "ROM", level: .success)
         log.log("Ready to start emulation", category: "System", level: .info)
-        log.log("⚠️ DEBUG: currentROM is now: \(rom.title)", category: "System", level: .info)
 
         logger.info("Successfully loaded ROM")
     }
