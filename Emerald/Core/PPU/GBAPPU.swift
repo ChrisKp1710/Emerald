@@ -9,18 +9,46 @@
 import Foundation
 import os.log
 
+// MARK: - Background Layer Structure
+
+/// Represents a single GBA background layer with all its properties
+struct BackgroundLayer {
+    var enabled: Bool = false
+    var priority: UInt8 = 0
+    var charBase: UInt32 = 0           // Character (tile) data base address
+    var screenBase: UInt32 = 0         // Screen (map) data base address
+    var size: UInt8 = 0                // 0=256x256, 1=512x256, 2=256x512, 3=512x512
+    var colorMode: Bool = false        // false=16 colors (4bpp), true=256 colors (8bpp)
+    var mosaic: Bool = false           // Mosaic effect enabled
+    var wraparound: Bool = true        // Coordinate wraparound
+
+    /// Parse BGCNT register to populate layer properties
+    mutating func updateFromBGCNT(_ bgcnt: UInt16) {
+        self.priority = UInt8(bgcnt & 0x03)
+        self.charBase = UInt32((bgcnt & 0x000C) >> 2) * 0x4000
+        self.mosaic = (bgcnt & 0x0040) != 0
+        self.colorMode = (bgcnt & 0x0080) != 0
+        self.screenBase = UInt32((bgcnt & 0x1F00) >> 8) * 0x800
+        self.wraparound = (bgcnt & 0x2000) != 0
+        self.size = UInt8((bgcnt >> 14) & 0x03)
+    }
+}
+
 @MainActor
 final class GBAPPU {
     // MARK: - Properties
-    
+
     internal let logger = Logger(subsystem: "dev.kodechris.Emerald", category: "PPU")
     internal weak var memory: GBAMemoryManager?
     internal weak var interrupts: GBAInterruptController?
-    
+
     // Display
     internal var framebuffer: [UInt32] // 240x160 RGBA pixels
     internal var currentScanline: Int = 0
     internal var currentCycle: Int = 0
+
+    // Background Layers (for tile modes)
+    internal var backgroundLayers: [BackgroundLayer] = Array(repeating: BackgroundLayer(), count: 4)
     
     // LCD Control Register (0x04000000)
     internal var dispcnt: UInt16 = 0x0080  // Display Control
@@ -207,12 +235,19 @@ final class GBAPPU {
         switch address {
         case 0x04000000:
             dispcnt = value
+            // Update background enabled flags
+            for i in 0..<4 {
+                backgroundLayers[i].enabled = (value & (0x0100 << i)) != 0
+            }
             logger.debug("DISPCNT = \(String(format: "0x%04X", value)), Mode = \(value & 0x07)")
         case 0x04000004:
             dispstat = (dispstat & 0x0007) | (value & 0xFFF8) // Preserve status bits
         case 0x04000008...0x0400000E:
             let index = Int((address - 0x04000008) / 2)
             bgcnt[index] = value
+            // Update background layer configuration
+            backgroundLayers[index].updateFromBGCNT(value)
+            backgroundLayers[index].enabled = (dispcnt & (0x0100 << index)) != 0
         case 0x04000010...0x0400001E:
             let index = Int((address - 0x04000010) / 4)
             if (address & 2) == 0 {
