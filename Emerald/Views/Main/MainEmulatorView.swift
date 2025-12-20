@@ -23,11 +23,13 @@ struct MainEmulatorView: View {
         VStack(spacing: 0) {
             if emulatorState.currentROM != nil {
                 // Modalità emulatore
+                let _ = print("🎮 DEBUG: Showing emulator view for ROM: \(emulatorState.currentROM!.title)")
                 emulatorToolbar
                 Divider()
                 emulatorView
             } else {
                 // Modalità libreria unificata
+                let _ = print("📚 DEBUG: Showing library view (currentROM is nil)")
                 libraryToolbar
                 Divider()
                 unifiedLibraryView

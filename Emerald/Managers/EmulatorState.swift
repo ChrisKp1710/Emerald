@@ -38,6 +38,7 @@ final class EmulatorState: ObservableObject {
     
     // MARK: - Rendering & Audio
     private var metalRenderer: MetalRenderer?
+    private var frameUpdateCallback: (([UInt32]) -> Void)? // Callback to update screen
     private var audioEngine: GBAAudioEngine?
     
     // MARK: - Threading
@@ -69,6 +70,11 @@ final class EmulatorState: ObservableObject {
     
     func getMetalRenderer() -> MetalRenderer? {
         return metalRenderer
+    }
+
+    func setFrameUpdateCallback(_ callback: @escaping ([UInt32]) -> Void) {
+        self.frameUpdateCallback = callback
+        logger.debug("Frame update callback set")
     }
     
     func loadROM(_ rom: GBARom) async throws {
@@ -116,7 +122,8 @@ final class EmulatorState: ObservableObject {
         currentROM = rom
         log.log("🎉 ROM loaded successfully!", category: "ROM", level: .success)
         log.log("Ready to start emulation", category: "System", level: .info)
-        
+        log.log("⚠️ DEBUG: currentROM is now: \(rom.title)", category: "System", level: .info)
+
         logger.info("Successfully loaded ROM")
     }
     
@@ -140,8 +147,9 @@ final class EmulatorState: ObservableObject {
             LogManager.shared.log("✅ Emulation started (60 FPS target)", category: "System", level: .success)
         }
         
-        emulationTask = Task {
-            await runEmulationLoop()
+        emulationTask = Task.detached { [weak self] in
+            guard let self = self else { return }
+            await self.runEmulationLoop()
         }
     }
     
@@ -375,11 +383,9 @@ final class EmulatorState: ObservableObject {
         
         // Transfer framebuffer to renderer
         if let framebuffer = ppu?.framebuffer {
-            metalRenderer?.updateTexture(with: framebuffer)
-            
-            // Pubblica il framebuffer per EmulatorScreenView
-            self.currentFramebuffer = framebuffer
-            
+            // Call the callback to update screen (doesn't block main thread)
+            frameUpdateCallback?(framebuffer)
+
             // Debug: Log first frame rendering
             if self.frameCount == 0 {
                 logger.debug("🖼️ First frame rendered successfully")
