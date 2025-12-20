@@ -12,7 +12,9 @@
       "WebFetch(domain:coranac.com)",
       "Bash(test:*)",
       "Bash(xcodebuild:*)",
-      "Bash(swiftc:*)"
+      "Bash(swiftc:*)",
+      "Bash(ls:*)",
+      "Bash(rm -f BIOS_IMPLEMENTATION_SUCCESS.md NEXT_STEPS_QUICK_GUIDE.md)"
     ],
     "deny": [],
     "ask": []

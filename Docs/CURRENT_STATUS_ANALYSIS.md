@@ -1,7 +1,8 @@
-# Analisi Stato Attuale - Emerald GBA Emulator
+# Stato Attuale - Emerald GBA Emulator
 
-**Data Analisi**: 17 Dicembre 2024
+**Aggiornato**: 20 Dicembre 2024
 **Versione**: 0.2.0 Alpha
+**Build**: ✅ Zero errori, zero warning
 
 ---
 
@@ -29,49 +30,52 @@ Emerald è un emulatore GBA per macOS scritto in Swift con un'architettura eccel
 
 ---
 
-## 🔴 PROBLEMA CRITICO: BIOS HLE Mancante
+## ✅ BIOS HLE - Fase 1 COMPLETATA
 
-### Situazione Attuale
+**Status:** Implementato con successo (17 Dicembre 2024)
 
-**File**: `Emerald/Core/Memory/GBAMemoryManager.swift` linea 149-153
-```swift
-private func readBIOS(offset: UInt32) -> UInt8 {
-    // Simplified BIOS implementation
-    // In a real implementation, this would load from a BIOS file
-    return 0xFF  // ← RITORNA SOLO 0xFF!
-}
-```
+### Funzioni Implementate (13/42)
 
-**File**: `Emerald/Core/CPU/ARM/ARMMemoryInstructions.swift` linea 407-425
-```swift
-internal func executeSWI(_ instruction: UInt32) -> Int {
-    let swiNumber = (instruction >> 16) & 0xFF
+**Critiche (5/5):**
+- ✅ VBlankIntrWait (0x05)
+- ✅ Div (0x06)
+- ✅ CPUSet (0x0B)
+- ✅ CPUFastSet (0x0C)
+- ✅ LZ77UncompWRAM (0x11)
 
-    // Salva stato e salta al BIOS
-    savedPSR[.supervisor] = cpsr
-    cpsr = (cpsr & 0xFFFFFF00) | 0x13
-    registers[14] = registers[15] - 4
-    registers[15] = 0x00000008  // ← Salta al BIOS che ritorna 0xFF
-    flushPipeline()
+**Supporto (8/37):**
+- ✅ IntrWait, DivArm, Halt, Stop, BiosChecksum, ecc.
 
-    return 3
-}
-```
+**Prossimi Passi:** Fasi 2-6 in `BIOS_HLE_ROADMAP.md`
 
-### Impatto
+---
 
-**Senza BIOS HLE**:
-- ❌ I giochi crashano quando chiamano VBlankIntrWait (0x05)
-- ❌ Divisioni falliscono → logica gioco rotta
-- ❌ Grafica compressa LZ77 non si decomprime → schermo nero/corrotto
-- ❌ Copia memoria veloce non funziona → glitch grafici
-- ❌ Impossible avviare la maggior parte dei giochi commerciali
+## 🔴 BLOCCHI CRITICI RIMANENTI
 
-**Con BIOS HLE (solo 5 funzioni base)**:
-- ✅ Molti homebrew avviabili
-- ✅ Alcuni giochi commerciali funzionanti
-- ✅ Grafica decompressa correttamente
-- ✅ VBlank sync corretto
+### 1. PPU Tile Mode 0 (BLOCCA 95% GIOCHI)
+
+**Status:** Non implementato
+**Impatto:** La maggior parte dei giochi mostra schermo nero
+
+**Soluzione:** Vedi `PPU_IMPLEMENTATION_PLAN.md`
+
+---
+
+### 2. Input System (BLOCCA GAMEPLAY)
+
+**Status:** Non implementato
+**Impatto:** Impossibile controllare i giochi
+
+**Soluzione:** Vedi `INPUT_SYSTEM_GUIDE.md`
+
+---
+
+### 3. Sprite Rendering (PERSONAGGI INVISIBILI)
+
+**Status:** Solo parsing OAM (10%)
+**Impatto:** Personaggi e UI invisibili
+
+**Soluzione:** Vedi `SPRITE_RENDERING_GUIDE.md`
 
 ### Funzioni BIOS Prioritarie
 
