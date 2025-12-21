@@ -272,7 +272,11 @@ final class GBAInterruptController {
     }
     
     func getPendingInterrupt() -> GBAInterrupt? {
-        return pendingInterrupts.first
+        let interrupt = pendingInterrupts.first
+        if let interrupt = interrupt {
+            logger.debug("⚡ Getting pending interrupt: \(interrupt)")
+        }
+        return interrupt
     }
     
     func clearInterrupt(_ interrupt: GBAInterrupt) {

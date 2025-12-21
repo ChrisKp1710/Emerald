@@ -163,7 +163,7 @@ extension GBAARM7TDMI {
         }
 
         // Fallback: Old behavior (jump to BIOS at 0x00000008)
-        logger.warning("⚠️ BIOS HLE not available! Falling back to BIOS jump (will likely fail)")
+        logger.warning("⚠️ BIOS HLE not available! SWI 0x\(String(format: "%02X", swiNumber)) called but BIOS is nil")
 
         savedPSR[.supervisor] = cpsr
         cpsr = (cpsr & ~0x1F) | 0x13 // Supervisor mode

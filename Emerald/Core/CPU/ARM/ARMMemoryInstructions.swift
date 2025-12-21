@@ -231,7 +231,15 @@ extension GBAARM7TDMI {
         let rn = Int((instruction >> 16) & 0xF)
         let rd = Int((instruction >> 12) & 0xF)
         
+        // Get base address
+        // When rn is PC (R15), we need PC+8 behavior (current_instruction + 8)
+        // At this point registers[15] = PC+4 (fetch advanced by 4)
+        // So we add +4 to get PC+8 as per ARM7TDMI specification
         var address = registers[rn]
+        if rn == 15 {
+            address = address &+ 4  // PC+4 → PC+8 for base register
+        }
+        
         var offset: UInt32 = 0
         var cycles = 1
         
@@ -260,6 +268,13 @@ extension GBAARM7TDMI {
             }
         }
         
+        // DEBUG: Log PC-relative loads in the problematic region
+        let pcValue = self.registers[15]
+        let isInLoopRegion = (pcValue >= 0x08000214 && pcValue <= 0x08000250)
+        if rn == 15 && l && isInLoopRegion {
+            self.logger.debug("🔍 LDR from PC: baseReg[15]=0x\(String(format: "%08X", self.registers[15])), offset=0x\(String(format: "%X", offset)), finalAddr=0x\(String(format: "%08X", address)), Rd=R\(rd)")
+        }
+        
         // Perform load/store
         guard let memory = memory else { return cycles }
         
@@ -270,6 +285,12 @@ extension GBAARM7TDMI {
             } else {
                 registers[rd] = memory.read32(address: address)
             }
+            
+            // DEBUG: Log value loaded in loop region
+            if rn == 15 && isInLoopRegion {
+                self.logger.debug("🔍 LDR result: R\(rd) = 0x\(String(format: "%08X", self.registers[rd]))")
+            }
+            
             cycles += getMemoryAccessCycles(address: address)
             
             if rd == 15 {
@@ -417,7 +438,7 @@ extension GBAARM7TDMI {
 
         // Fallback: Old behavior (jump to BIOS at 0x00000008)
         // This should not happen in normal operation
-        logger.warning("⚠️ BIOS HLE not available! Falling back to BIOS jump (will likely fail)")
+        logger.warning("⚠️ BIOS HLE not available! SWI 0x\(String(format: "%02X", swiNumber)) called but BIOS is nil")
 
         savedPSR[.supervisor] = cpsr
         cpsr = (cpsr & 0xFFFFFF00) | 0x13 // Supervisor mode

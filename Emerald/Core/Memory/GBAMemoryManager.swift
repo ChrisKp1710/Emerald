@@ -12,6 +12,10 @@ import OSLog
 final class GBAMemoryManager {
     private let logger = Logger(subsystem: "com.emerald.gba", category: "Memory")
     
+    // MARK: - Debug Counters
+    private var invalidWriteCount = 0
+    private let maxInvalidWriteLogs = 10
+    
     // MARK: - Memory Regions
     
     /// Internal Work RAM (32KB) - Fast
@@ -42,6 +46,9 @@ final class GBAMemoryManager {
     
     /// DMA Controller reference
     weak var dmaController: GBADMAController?
+    
+    /// PPU reference for graphics register writes
+    weak var ppu: GBAPPU?
     
     // MARK: - Initialization
     
@@ -110,6 +117,17 @@ final class GBAMemoryManager {
     
     func read32(address: UInt32) -> UInt32 {
         let alignedAddress = address & ~3
+        
+        // Log specific address reads (ROM initialization code reads handlers here)
+        if alignedAddress >= 0x03007F00 && alignedAddress <= 0x03007FFC {
+            let value = UInt32(read16(address: alignedAddress)) |
+                       (UInt32(read16(address: alignedAddress + 2)) << 16)
+            let addrStr = String(format: "%08X", alignedAddress)
+            let valStr = String(format: "%08X", value)
+            logger.debug("📖 Read32: addr=0x\(addrStr), value=0x\(valStr)")
+            return value
+        }
+        
         return UInt32(read16(address: alignedAddress)) |
                (UInt32(read16(address: alignedAddress + 2)) << 16)
     }
@@ -151,7 +169,13 @@ final class GBAMemoryManager {
         case 0x08...0x0D: // Game Pak
             cartridge?.write8(address: address, value: value)
         default:
-            logger.warning("Invalid write8 to address: \(String(format: "%08X", address))")
+            if invalidWriteCount < maxInvalidWriteLogs {
+                logger.warning("Invalid write8 to address: \(String(format: "%08X", address))")
+                invalidWriteCount += 1
+                if invalidWriteCount == maxInvalidWriteLogs {
+                    logger.warning("(Further invalid write warnings will be suppressed)")
+                }
+            }
         }
     }
     
@@ -166,8 +190,23 @@ final class GBAMemoryManager {
         write8(address: alignedAddress + 1, value: UInt8((value >> 8) & 0xFF))
     }
     
+    // Track write count for logging
+    private var writeLogCount = 0
+    
     func write32(address: UInt32, value: UInt32) {
         let alignedAddress = address & ~3
+        // Log first 10 writes only to avoid spam
+        if alignedAddress >= 0x03000000 && alignedAddress < 0x04000000 {
+            if self.writeLogCount < 10 {
+                let addrStr = String(format: "%08X", alignedAddress)
+                let valStr = String(format: "%08X", value)
+                logger.debug("📝 Write32 #\(self.writeLogCount + 1): addr=0x\(addrStr), value=0x\(valStr)")
+                self.writeLogCount += 1
+            } else if self.writeLogCount == 10 {
+                logger.info("📝 Write32 logging stopped after 10 entries to reduce spam")
+                self.writeLogCount += 1
+            }
+        }
         write16(address: alignedAddress, value: UInt16(value & 0xFFFF))
         write16(address: alignedAddress + 2, value: UInt16((value >> 16) & 0xFFFF))
     }
@@ -197,6 +236,17 @@ final class GBAMemoryManager {
             $0.storeBytes(of: value, toByteOffset: Int(offset), as: UInt8.self)
         }
         
+        // Forward PPU register writes (0x04000000-0x04000056)
+        // Must be done as 16-bit writes for proper handling
+        if offset <= 0x56 && offset % 2 == 1 {
+            // High byte written, now forward full 16-bit value to PPU
+            let lowByte = ioRegisters[Int(offset - 1)]
+            let fullValue = (UInt16(value) << 8) | UInt16(lowByte)
+            let registerAddress = 0x04000000 + (offset & ~1)
+            logger.info("🔀 Forwarding to PPU: addr=0x\(String(format: "%08X", registerAddress)), value=0x\(String(format: "%04X", fullValue))")
+            ppu?.writeRegister16(registerAddress, value: fullValue)
+        }
+        
         // Handle special I/O register writes
         handleIOWrite(offset: offset, value: value)
     }
@@ -218,7 +268,12 @@ final class GBAMemoryManager {
                 logger.info("📺 DISPSTAT write: 0x\(String(format: "%04X", dispstat)) - VBlank IRQ: \(vblankIRQ), HBlank IRQ: \(hblankIRQ), VCount IRQ: \(vcountIRQ)")
             }
         case 0x200: // IME (Interrupt Master Enable)
-            logger.info("🔔 IME (Interrupt Master Enable) write: 0x\(String(format: "%02X", value))")
+            logger.info("🔔 IME (Interrupt Master Enable) write: 0x\(String(format: "%02X", value)) - Enabled: \(value != 0)")
+        case 0x202...0x203: // IE (Interrupt Enable)
+            if offset == 0x203 {
+                let ie = (UInt16(value) << 8) | UInt16(ioRegisters[0x202])
+                logger.info("🎯 IE (Interrupt Enable) write: 0x\(String(format: "%04X", ie)) - VBlank: \((ie & 0x0001) != 0), HBlank: \((ie & 0x0002) != 0)")
+            }
         case 0x200...0x20F: // DMA0 registers
             dmaController?.handleDMAWrite(channel: 0, offset: offset - 0x200, value: value)
             return

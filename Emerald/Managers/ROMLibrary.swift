@@ -98,7 +98,7 @@ final class ROMLibrary: ObservableObject {
     }
     
     func addROM(from url: URL) async throws {
-        await LogManager.shared.log("🎮 Adding ROM from: \(url.path)", category: "ROM", level: .info)
+        LogManager.shared.log("🎮 Adding ROM from: \(url.path)", category: "ROM", level: .info)
         logger.info("Adding ROM from: \(url.path)")
         
         // Start accessing security-scoped resource
@@ -109,28 +109,28 @@ final class ROMLibrary: ObservableObject {
             }
         }
         
-        await LogManager.shared.log("✅ Security-scoped access granted: \(accessing)", category: "ROM", level: accessing ? .success : .warning)
+        LogManager.shared.log("✅ Security-scoped access granted: \(accessing)", category: "ROM", level: accessing ? .success : .warning)
         
         // Copy ROM to library directory
         let filename = url.lastPathComponent
         let destinationURL = romDirectoryURL.appendingPathComponent(filename)
         
         if fileManager.fileExists(atPath: destinationURL.path) {
-            await LogManager.shared.log("⚠️ ROM already exists", category: "ROM", level: .warning)
+            LogManager.shared.log("⚠️ ROM already exists", category: "ROM", level: .warning)
             throw ROMLibraryError.romAlreadyExists
         }
         
         do {
-            await LogManager.shared.log("📋 Copying ROM to library...", category: "ROM", level: .info)
+            LogManager.shared.log("📋 Copying ROM to library...", category: "ROM", level: .info)
             try fileManager.copyItem(at: url, to: destinationURL)
-            await LogManager.shared.log("✅ ROM copied successfully", category: "ROM", level: .success)
+            LogManager.shared.log("✅ ROM copied successfully", category: "ROM", level: .success)
         } catch {
-            await LogManager.shared.log("❌ Failed to copy ROM: \(error.localizedDescription)", category: "ROM", level: .error)
+            LogManager.shared.log("❌ Failed to copy ROM: \(error.localizedDescription)", category: "ROM", level: .error)
             throw error
         }
         
         // Parse ROM metadata
-        await LogManager.shared.log("📦 Parsing ROM metadata...", category: "ROM", level: .info)
+        LogManager.shared.log("📦 Parsing ROM metadata...", category: "ROM", level: .info)
         let rom = try parseROMMetadata(at: destinationURL)
         roms.append(rom)
         
@@ -142,15 +142,15 @@ final class ROMLibrary: ObservableObject {
                 relativeTo: nil
             )
             UserDefaults.standard.set(bookmarkData, forKey: "bookmark_\(rom.id)")
-            await LogManager.shared.log("🔖 Security bookmark saved", category: "ROM", level: .success)
+            LogManager.shared.log("🔖 Security bookmark saved", category: "ROM", level: .success)
         } catch {
-            await LogManager.shared.log("⚠️ Failed to save bookmark: \(error.localizedDescription)", category: "ROM", level: .warning)
+            LogManager.shared.log("⚠️ Failed to save bookmark: \(error.localizedDescription)", category: "ROM", level: .warning)
         }
         
         // Save metadata
         saveMetadata()
         
-        await LogManager.shared.log("🎉 ROM added successfully: \(rom.title)", category: "ROM", level: .success)
+        LogManager.shared.log("🎉 ROM added successfully: \(rom.title)", category: "ROM", level: .success)
         logger.info("Successfully added ROM: \(rom.title)")
     }
     

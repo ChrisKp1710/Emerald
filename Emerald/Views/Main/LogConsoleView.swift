@@ -73,7 +73,7 @@ struct LogConsoleView: View {
                     }
                     .padding(8)
                 }
-                .onChange(of: logManager.logs.count) { _ in
+                .onChange(of: logManager.logs.count) { oldValue, newValue in
                     if autoScroll, let lastLog = filteredLogs.last {
                         withAnimation {
                             proxy.scrollTo(lastLog.id, anchor: .bottom)

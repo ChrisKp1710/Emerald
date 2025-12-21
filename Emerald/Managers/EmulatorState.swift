@@ -35,6 +35,7 @@ final class EmulatorState: ObservableObject {
     private var timerSystem: GBATimerSystem?
     private var dmaController: GBADMAController?
     private var interruptController: GBAInterruptController?
+    private var bios: GBABIOS?  // BIOS HLE (must be kept alive)
     
     // MARK: - Rendering & Audio
     private var metalRenderer: MetalRenderer?
@@ -284,7 +285,7 @@ final class EmulatorState: ObservableObject {
 
         LogManager.shared.log("Initializing BIOS HLE...", category: "BIOS", level: .info)
         // Initialize BIOS High-Level Emulation
-        let bios = GBABIOS(cpu: cpu!, memory: memory!, interrupts: interruptController!)
+        bios = GBABIOS(cpu: cpu!, memory: memory!, interrupts: interruptController!)
         cpu?.bios = bios
         LogManager.shared.log("✅ BIOS HLE ready - Software interrupts enabled", category: "BIOS", level: .success)
 
@@ -324,6 +325,7 @@ final class EmulatorState: ObservableObject {
         // Set up component interconnections
         cpu.interruptController = interruptController
         memory.dmaController = dmaController
+        memory.ppu = ppu  // ← CRITICAL: Connect memory manager to PPU
         ppu.setInterrupts(interruptController) // Use setInterrupts method
         timerSystem.interruptController = interruptController
         dmaController.interruptController = interruptController

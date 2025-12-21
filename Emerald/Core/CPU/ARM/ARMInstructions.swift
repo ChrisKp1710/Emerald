@@ -13,6 +13,28 @@ extension GBAARM7TDMI {
     // MARK: - ARM Instruction Execution
     
     internal func executeARMInstruction(_ instruction: UInt32) -> Int {
+        // Check for branch and exchange FIRST (before MSR check that can catch it)
+        if (instruction & 0x0FFFFFF0) == 0x012FFF10 {
+            let rm = Int(instruction & 0xF)
+            let address = registers[rm]
+            
+            // DEBUG: Log BX in loop region
+            let pcValue = registers[15]
+            if pcValue >= 0x08000214 && pcValue <= 0x08000250 {
+                logger.debug("🔍 BX R\(rm): target=0x\(String(format: "%08X", address)), bit0=\(address & 1)")
+            }
+            
+            if address & 1 != 0 {
+                cpsr |= 0x20
+                instructionSet = .thumb
+                logger.debug("🔍 BX: Switched to Thumb mode, PC will be 0x\(String(format: "%08X", address & 0xFFFFFFFE))")
+            }
+            
+            registers[15] = address & 0xFFFFFFFE
+            flushPipeline()
+            return 3
+        }
+        
         // Check for multiply instructions
         if (instruction & 0x0FC000F0) == 0x00000090 {
             return executeMultiply(instruction)
@@ -41,21 +63,6 @@ extension GBAARM7TDMI {
         // Check for PSR Transfer (MSR)
         if (instruction & 0x0FB00000) == 0x03200000 || (instruction & 0x0DB00000) == 0x01200000 {
             return executeMSR(instruction)
-        }
-        
-        // Check for branch and exchange
-        if (instruction & 0x0FFFFFF0) == 0x012FFF10 {
-            let rm = Int(instruction & 0xF)
-            let address = registers[rm]
-            
-            if address & 1 != 0 {
-                cpsr |= 0x20
-                instructionSet = .thumb
-            }
-            
-            registers[15] = address & 0xFFFFFFFE
-            flushPipeline()
-            return 3
         }
         
         let category = (instruction >> 26) & 0x3

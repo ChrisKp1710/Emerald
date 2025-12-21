@@ -121,7 +121,10 @@ final class GBAARM7TDMI {
         ]
         savedPSR.removeAll()
         
-        // Set stack pointers for each mode (mGBA values)
+        // Set stack pointers for each mode (SkyEmu values from gba.h:1773-1783)
+        // System mode SP (R13 regular register, not banked)
+        registers[13] = 0x03007F00  // ⭐ R13 for System mode (active at startup)
+        
         // IRQ mode SP (R13_irq banked)
         bankedRegisters[.irq]?[0] = 0x03007FA0  // R13 for IRQ mode
         
@@ -129,8 +132,8 @@ final class GBAARM7TDMI {
         bankedRegisters[.supervisor]?[0] = 0x03007FE0  // R13 for SVC mode
         
         // Reset CPSR to system mode (similar to BIOS exit state)
-        // mGBA uses 0x1F (System mode) after BIOS completion
-        cpsr = 0x1F  // System mode, ARM state, interrupts enabled
+        // SkyEmu/mGBA use 0xDF (System mode, IRQ enabled, FIQ disabled, ARM state)
+        cpsr = 0xDF  // System mode (0x1F), ARM state, I=0 F=1 
         instructionSet = .arm
         
         // User/System mode SP (not banked)
@@ -178,8 +181,21 @@ final class GBAARM7TDMI {
         // Debug: Log first few instructions
         let shouldLog = instructionCount < 10
         
-        // Handle interrupts first
-        if let interrupt = interruptController?.getPendingInterrupt() {
+        // If CPU is halted, skip execution until an interrupt arrives
+        if halted {
+            // Check if there's a pending interrupt that can wake us up
+            if let interrupt = interruptController?.getPendingInterrupt() {
+                halted = false  // Wake up from halt
+                logger.info("⏰ CPU woke up from halt - Interrupt: \(String(describing: interrupt))")
+                cycles += handleInterrupt(interrupt)
+            } else {
+                // Still halted, just consume 1 cycle
+                return 1
+            }
+        }
+        
+        // Handle interrupts (for non-halted state)
+        if !halted, let interrupt = interruptController?.getPendingInterrupt() {
             cycles += handleInterrupt(interrupt)
         }
         
@@ -191,14 +207,24 @@ final class GBAARM7TDMI {
                 pipeline[0] = memory.read32(address: fetchAddress)
                 registers[15] += 4
                 
-                if shouldLog {
+                // Special logging for the problematic loop region
+                let isInLoopRegion = fetchAddress >= 0x08000214 && fetchAddress <= 0x08000238
+                
+                // Log first 10 instructions normally, then ALWAYS log loop region
+                if shouldLog && instructionCount < 10 {
                     logger.debug("🔍 Fetch[ARM]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%08X", self.pipeline[0]))")
+                } else if instructionCount == 10 {
+                    logger.info("🔍 Initial logging stopped after 10 instructions - switching to loop-only logging")
+                } else if isInLoopRegion {
+                    // ALWAYS log loop region with full details
+                    logger.debug("🔍 [Loop] PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%08X", self.pipeline[0])) | R0=0x\(String(format: "%08X", self.registers[0])), R1=0x\(String(format: "%08X", self.registers[1])), LR=0x\(String(format: "%08X", self.registers[14]))")
                 }
             } else {
                 pipeline[0] = UInt32(memory.read16(address: fetchAddress))
                 registers[15] += 2
                 
-                if shouldLog {
+                // Log first 20 Thumb instructions to debug
+                if shouldLog && instructionCount < 20 {
                     logger.debug("🔍 Fetch[Thumb]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%04X", self.pipeline[0]))")
                 }
             }

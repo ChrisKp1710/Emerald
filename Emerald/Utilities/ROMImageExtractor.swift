@@ -143,7 +143,7 @@ struct ROMImageView: View {
         // Try to load cached image or generate new one
         await MainActor.run {
             do {
-                let romData = try Data(contentsOf: rom.url)
+                _ = try Data(contentsOf: rom.url)
                 image = ROMImageExtractor.generatePlaceholder(for: rom)
             } catch {
                 image = ROMImageExtractor.generatePlaceholder(for: rom)
