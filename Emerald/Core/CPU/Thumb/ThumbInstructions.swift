@@ -39,8 +39,8 @@ extension GBAARM7TDMI {
             // Format 11-12: 1011xxxx (0xB)
             // Format 13: 1100xxxx (0xC)
             // Format 15 (conditional branch): 1101xxxx (0xD)
-            let bit12_11 = (instruction >> 12) & 0x3
-            if bit12_11 == 3 { // 11xx = 0xD = conditional branch
+            let topNibble = (instruction >> 12) & 0xF
+            if topNibble == 0xD { // 1101xxxx = conditional branch
                 return executeThumbConditionalBranch(instruction)
             } else {
                 return decodeThumbFormat11to13(instruction)
