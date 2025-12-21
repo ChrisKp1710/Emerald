@@ -35,8 +35,16 @@ extension GBAARM7TDMI {
             return decodeThumbFormat6to8(instruction)
         case 5: // Format 9, 10: Load/store halfword, SP-relative
             return decodeThumbFormat9and10(instruction)
-        case 6: // Format 11, 12, 13: Load address, Add offset to SP, Push/pop
-            return decodeThumbFormat11to13(instruction)
+        case 6: // Format 11, 12, 13 OR conditional branch (need bits [15:12])
+            // Format 11-12: 1011xxxx (0xB)
+            // Format 13: 1100xxxx (0xC)
+            // Format 15 (conditional branch): 1101xxxx (0xD)
+            let bit12_11 = (instruction >> 12) & 0x3
+            if bit12_11 == 3 { // 11xx = 0xD = conditional branch
+                return executeThumbConditionalBranch(instruction)
+            } else {
+                return decodeThumbFormat11to13(instruction)
+            }
         case 7: // Format 14, 15, 16, 17, 18, 19: Multiple load/store, conditional branch, SWI, branch
             return decodeThumbFormat14to19(instruction)
         default:

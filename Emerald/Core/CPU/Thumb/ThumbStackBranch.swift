@@ -136,10 +136,20 @@ extension GBAARM7TDMI {
         let condition = UInt32((instruction >> 8) & 0xF)
         let soffset8 = Int8(bitPattern: UInt8(instruction & 0xFF))
         
-        if checkCondition(condition) {
+        let conditionMet = checkCondition(condition)
+        
+        // Debug logging for first 50 branches
+        if instructionCount < 50 {
             let offset = Int32(soffset8) << 1
             let pc = registers[15]
-            registers[15] = UInt32(Int32(pc) + offset + 4)
+            logger.debug("🔀 Branch: cond=\(condition), offset=\(offset), PC=0x\(String(format: "%08X", pc)), taken=\(conditionMet), target=0x\(String(format: "%08X", UInt32(Int32(pc) + offset)))")
+        }
+        
+        if conditionMet {
+            let offset = Int32(soffset8) << 1
+            let pc = registers[15]
+            // PC is already at instruction+4, offset is from (instruction+4)
+            registers[15] = UInt32(Int32(pc) + offset)
             flushPipeline()
             return 3
         }
@@ -196,7 +206,8 @@ extension GBAARM7TDMI {
         
         let offset = signExtended << 1
         let pc = registers[15]
-        registers[15] = UInt32(Int32(pc) + offset + 4)
+        // PC is already at instruction+4, offset is from (instruction+4)
+        registers[15] = UInt32(Int32(pc) + offset)
         
         flushPipeline()
         return 3
