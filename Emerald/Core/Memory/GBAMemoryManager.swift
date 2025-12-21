@@ -32,6 +32,11 @@ final class GBAMemoryManager {
     /// I/O Registers
     private var ioRegisters = Data(count: 1024)
     
+    /// IF_BIOS register at 0x03007FF8 (BIOS interrupt acknowledge)
+    /// Used by VBlankIntrWait and IntrWait BIOS calls
+    /// Reference: mGBA arm.c memory handling
+    private var ifBios: UInt16 = 0
+    
     /// Game Pak reference
     private weak var cartridge: GBACartridge?
     
@@ -53,6 +58,7 @@ final class GBAMemoryManager {
         oam = Data(count: 1024)
         palette = Data(count: 1024)
         ioRegisters = Data(count: 1024)
+        ifBios = 0
         
         logger.info("Memory reset complete")
     }
@@ -69,6 +75,12 @@ final class GBAMemoryManager {
         case 0x02: // EWRAM
             return ewram.withUnsafeBytes { $0.load(fromByteOffset: Int(offset % 0x40000), as: UInt8.self) }
         case 0x03: // IWRAM
+            // IF_BIOS register at 0x03007FF8 (special handling)
+            if offset == 0x7FF8 {
+                return UInt8(ifBios & 0xFF)
+            } else if offset == 0x7FF9 {
+                return UInt8((ifBios >> 8) & 0xFF)
+            }
             return iwram.withUnsafeBytes { $0.load(fromByteOffset: Int(offset % 0x8000), as: UInt8.self) }
         case 0x04: // I/O Registers
             return readIORegister8(offset: offset)
@@ -88,6 +100,10 @@ final class GBAMemoryManager {
     
     func read16(address: UInt32) -> UInt16 {
         let alignedAddress = address & ~1
+        // Fast path per IF_BIOS (0x03007FF8)
+        if alignedAddress == 0x03007FF8 {
+            return ifBios
+        }
         return UInt16(read8(address: alignedAddress)) |
                (UInt16(read8(address: alignedAddress + 1)) << 8)
     }
@@ -108,8 +124,15 @@ final class GBAMemoryManager {
                 $0.storeBytes(of: value, toByteOffset: Int(offset % 0x40000), as: UInt8.self)
             }
         case 0x03: // IWRAM
-            iwram.withUnsafeMutableBytes { 
-                $0.storeBytes(of: value, toByteOffset: Int(offset % 0x8000), as: UInt8.self)
+            // IF_BIOS register at 0x03007FF8 (special handling)
+            if offset == 0x7FF8 {
+                ifBios = (ifBios & 0xFF00) | UInt16(value)
+            } else if offset == 0x7FF9 {
+                ifBios = (ifBios & 0x00FF) | (UInt16(value) << 8)
+            } else {
+                iwram.withUnsafeMutableBytes { 
+                    $0.storeBytes(of: value, toByteOffset: Int(offset % 0x8000), as: UInt8.self)
+                }
             }
         case 0x04: // I/O Registers
             writeIORegister8(offset: offset, value: value)
@@ -134,6 +157,11 @@ final class GBAMemoryManager {
     
     func write16(address: UInt32, value: UInt16) {
         let alignedAddress = address & ~1
+        // Fast path per IF_BIOS (0x03007FF8)
+        if alignedAddress == 0x03007FF8 {
+            ifBios = value
+            return
+        }
         write8(address: alignedAddress, value: UInt8(value & 0xFF))
         write8(address: alignedAddress + 1, value: UInt8((value >> 8) & 0xFF))
     }
@@ -174,16 +202,35 @@ final class GBAMemoryManager {
     }
     
     private func handleIOWrite(offset: UInt32, value: UInt8) {
-        // Handle writes to specific I/O registers
+        // Log important register writes
         switch offset {
+        case 0x000...0x001: // DISPCNT
+            if offset == 0x001 {
+                let dispcnt = (UInt16(value) << 8) | UInt16(ioRegisters[0])
+                logger.debug("📺 DISPCNT write: 0x\(String(format: "%04X", dispcnt)) - Mode: \(dispcnt & 0x7)")
+            }
+        case 0x004...0x005: // DISPSTAT
+            if offset == 0x005 {
+                let dispstat = (UInt16(value) << 8) | UInt16(ioRegisters[4])
+                let vblankIRQ = (dispstat & 0x0008) != 0
+                let hblankIRQ = (dispstat & 0x0010) != 0
+                let vcountIRQ = (dispstat & 0x0020) != 0
+                logger.info("📺 DISPSTAT write: 0x\(String(format: "%04X", dispstat)) - VBlank IRQ: \(vblankIRQ), HBlank IRQ: \(hblankIRQ), VCount IRQ: \(vcountIRQ)")
+            }
+        case 0x200: // IME (Interrupt Master Enable)
+            logger.info("🔔 IME (Interrupt Master Enable) write: 0x\(String(format: "%02X", value))")
         case 0x200...0x20F: // DMA0 registers
             dmaController?.handleDMAWrite(channel: 0, offset: offset - 0x200, value: value)
+            return
         case 0x210...0x21F: // DMA1 registers
             dmaController?.handleDMAWrite(channel: 1, offset: offset - 0x210, value: value)
+            return
         case 0x220...0x22F: // DMA2 registers
             dmaController?.handleDMAWrite(channel: 2, offset: offset - 0x220, value: value)
+            return
         case 0x230...0x23F: // DMA3 registers
             dmaController?.handleDMAWrite(channel: 3, offset: offset - 0x230, value: value)
+            return
         default:
             break
         }

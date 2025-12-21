@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os
 
 extension GBAPPU {
 
@@ -17,6 +18,16 @@ extension GBAPPU {
     internal func renderMode0() {
         let y = currentScanline
         guard y < Self.screenHeight else { return }
+        
+        // Log solo prima scanline
+        if y == 0 {
+            let enabledBGs = self.backgroundLayers.enumerated().filter { $1.enabled }.map { $0.0 }
+            logger.info("🖼️ Mode 0 rendering - BG enabled: \(enabledBGs)")
+            for i in enabledBGs {
+                let bg = self.backgroundLayers[i]
+                logger.debug("  BG\(i): Priority=\(bg.priority), CharBase=0x\(String(format: "%X", bg.charBase)), ScreenBase=0x\(String(format: "%X", bg.screenBase)), Size=\(bg.size), Colors=\(bg.colorMode ? 256 : 16)")
+            }
+        }
 
         // Priority buffers for compositing (4 = no layer, highest priority)
         var priorityBuffer = [UInt8](repeating: 4, count: Self.screenWidth)

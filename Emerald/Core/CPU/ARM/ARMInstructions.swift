@@ -182,7 +182,7 @@ extension GBAARM7TDMI {
         
         // Update flags if S bit is set
         if s {
-            updateFlags(result: result, operation: Int(opcode))
+            updateFlags(result: result, operation: opcode, operand1: rnValue, operand2: operand2)
         }
         
         return cycles

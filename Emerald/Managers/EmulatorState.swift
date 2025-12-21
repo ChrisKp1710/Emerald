@@ -367,11 +367,21 @@ final class EmulatorState: ObservableObject {
         // Safety limit to prevent infinite loops
         let maxInstructionsPerFrame = 100_000
         
+        // Debug: Log first few frames in detail
+        let shouldLogDetail = self.frameCount < 3
+        
         while cyclesExecuted < cyclesPerFrame && isRunning && !isPaused && instructionsExecuted < maxInstructionsPerFrame {
             // Execute CPU instruction
             let cycles = cpu?.executeInstruction() ?? 1
             cyclesExecuted += cycles
             instructionsExecuted += 1
+            
+            // Debug: Log first few instructions
+            if shouldLogDetail && instructionsExecuted <= 5 {
+                if let pc = cpu?.getRegister(15) {
+                    logger.debug("🔧 Frame \(self.frameCount + 1), Instruction \(instructionsExecuted): PC=0x\(String(format: "%08X", pc)), Cycles=\(cycles)")
+                }
+            }
             
             // Update PPU (nuova implementazione)
             ppu?.step(cycles: cycles)
@@ -385,6 +395,11 @@ final class EmulatorState: ObservableObject {
         // Debug: Warn if we hit the safety limit
         if instructionsExecuted >= maxInstructionsPerFrame {
             logger.warning("⚠️ Safety limit hit: \(instructionsExecuted) instructions")
+        }
+        
+        // Debug: Log frame summary for first few frames
+        if shouldLogDetail {
+            logger.info("📊 Frame \(self.frameCount + 1) complete: \(instructionsExecuted) instructions, \(cyclesExecuted) cycles")
         }
         
         // Transfer framebuffer to renderer

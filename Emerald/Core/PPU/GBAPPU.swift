@@ -93,7 +93,15 @@ final class GBAPPU {
     init() {
         // Initialize framebuffer (240×160, black screen)
         self.framebuffer = Array(repeating: 0xFF000000, count: Self.screenWidth * Self.screenHeight)
-        logger.info("PPU initialized")
+        
+        // Initialize registers to zero (BIOS skip will set proper values)
+        // Reference: mGBA software-video.c reset() initializes to 0x0080,
+        // but CPU reset() will overwrite to 0x0000 during BIOS skip
+        dispcnt = 0x0000  // Start with NO forced blank (changed from 0x0080)
+        dispstat = 0x0000
+        vcount = 0x0000
+        
+        logger.info("🎮 PPU initialized - DISPCNT: 0x0000 (no forced blank)")
     }
     
     func setMemory(_ memory: GBAMemoryManager) {
@@ -146,6 +154,21 @@ final class GBAPPU {
     
     private func renderScanline() {
         let mode = dispcnt & 0x07
+        let forcedBlank = (dispcnt & 0x80) != 0
+        
+        // Log solo prima scanline per non spammare
+        if currentScanline == 0 {
+            logger.info("🎨 Rendering Frame - DISPCNT: 0x\(String(format: "%04X", self.dispcnt)) | Mode: \(mode) | ForcedBlank: \(forcedBlank) | Enabled BG: [\(self.backgroundLayers.enumerated().map { $1.enabled ? "\($0)" : "-" }.joined())]")
+        }
+        
+        // Se forced blank, renderizza schermo bianco
+        if forcedBlank {
+            let offset = currentScanline * Self.screenWidth
+            for x in 0..<Self.screenWidth {
+                framebuffer[offset + x] = 0xFFFFFFFF  // Bianco
+            }
+            return
+        }
         
         switch mode {
         case 0: renderMode0() // Tile mode
@@ -234,12 +257,13 @@ final class GBAPPU {
     func writeRegister16(_ address: UInt32, value: UInt16) {
         switch address {
         case 0x04000000:
+            let oldDispcnt = dispcnt
             dispcnt = value
             // Update background enabled flags
             for i in 0..<4 {
                 backgroundLayers[i].enabled = (value & (0x0100 << i)) != 0
             }
-            logger.debug("DISPCNT = \(String(format: "0x%04X", value)), Mode = \(value & 0x07)")
+            logger.info("✏️ DISPCNT WRITE: 0x\(String(format: "%04X", oldDispcnt)) → 0x\(String(format: "%04X", value)) | Mode: \(value & 0x07) | ForcedBlank: \((value & 0x80) != 0 ? "YES" : "NO") | BG: [\(self.backgroundLayers[0].enabled ? "0" : "-")\(self.backgroundLayers[1].enabled ? "1" : "-")\(self.backgroundLayers[2].enabled ? "2" : "-")\(self.backgroundLayers[3].enabled ? "3" : "-")]")
         case 0x04000004:
             dispstat = (dispstat & 0x0007) | (value & 0xFFF8) // Preserve status bits
         case 0x04000008...0x0400000E:

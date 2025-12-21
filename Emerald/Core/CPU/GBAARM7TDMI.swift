@@ -103,37 +103,68 @@ final class GBAARM7TDMI {
     // MARK: - Public Interface
     
     /// Reset the CPU to initial state
+    /// Implements BIOS Skip (Fast Boot) following mGBA best practices
+    /// Reference: mGBA arm.c ARMReset() lines 91-115
     func reset() {
-        logger.info("Resetting ARM7TDMI CPU")
+        logger.info("🔄 Resetting ARM7TDMI CPU with BIOS Skip")
         
         // Clear registers
         registers = [UInt32](repeating: 0, count: 16)
         
-        // Clear banked registers
-        bankedRegisters.removeAll()
+        // Initialize banked registers for all modes
+        bankedRegisters = [
+            .fiq: [UInt32](repeating: 0, count: 7),
+            .irq: [UInt32](repeating: 0, count: 2),
+            .supervisor: [UInt32](repeating: 0, count: 2),
+            .abort: [UInt32](repeating: 0, count: 2),
+            .undefined: [UInt32](repeating: 0, count: 2)
+        ]
         savedPSR.removeAll()
         
-        // Reset CPSR to supervisor mode (SVC mode, ARM state, interrupts disabled)
-        cpsr = 0xD3  // SVC mode (0x13) + I and F bits set
+        // Set stack pointers for each mode (mGBA values)
+        // IRQ mode SP (R13_irq banked)
+        bankedRegisters[.irq]?[0] = 0x03007FA0  // R13 for IRQ mode
+        
+        // SVC mode SP (R13_svc banked)
+        bankedRegisters[.supervisor]?[0] = 0x03007FE0  // R13 for SVC mode
+        
+        // Reset CPSR to system mode (similar to BIOS exit state)
+        // mGBA uses 0x1F (System mode) after BIOS completion
+        cpsr = 0x1F  // System mode, ARM state, interrupts enabled
         instructionSet = .arm
         
+        // User/System mode SP (not banked)
+        registers[13] = 0x03007F00
+        
         // Set initial PC to ROM start (0x08000000)
-        // GBA boots from cartridge ROM after BIOS (we skip BIOS for now)
+        // GBA boots from cartridge ROM after BIOS
         registers[15] = 0x08000000
         
-        // Set initial stack pointers for different modes
-        // SP (R13) should point to end of IWRAM for now
-        registers[13] = 0x03007F00
+        // Initialize PPU registers (BIOS does this before jumping to ROM)
+        // Reference: mGBA software-video.c reset()
+        memory?.write16(address: 0x04000000, value: 0x0000)  // DISPCNT: NO forced blank
+        memory?.write16(address: 0x04000004, value: 0x0000)  // DISPSTAT
+        memory?.write16(address: 0x04000006, value: 0x0000)  // VCOUNT
+        
+        // Initialize background control registers
+        for i in 0..<4 {
+            let bgcntAddr = 0x04000008 + UInt32(i * 2)
+            memory?.write16(address: bgcntAddr, value: 0x0000)  // BGCNT[i]
+        }
         
         // Clear pipeline
         pipeline = [UInt32](repeating: 0, count: 3)
         pipelineValid = [Bool](repeating: false, count: 3)
         
+        // Reset state flags
+        halted = false
+        stopped = false
+        
         // Reset counters
         cycleCount = 0
         instructionCount = 0
         
-        logger.info("CPU reset complete - PC: 0x\(String(format: "%08X", self.registers[15]))")
+        logger.info("✅ CPU reset complete - PC: 0x\(String(format: "%08X", self.registers[15])), Mode: System, DISPCNT: 0x0000")
     }
     
     /// Execute a single instruction
@@ -143,6 +174,9 @@ final class GBAARM7TDMI {
         guard let memory = memory else { return 1 }
         
         var cycles = 1
+        
+        // Debug: Log first few instructions
+        let shouldLog = instructionCount < 10
         
         // Handle interrupts first
         if let interrupt = interruptController?.getPendingInterrupt() {
@@ -156,9 +190,17 @@ final class GBAARM7TDMI {
             if instructionSet == .arm {
                 pipeline[0] = memory.read32(address: fetchAddress)
                 registers[15] += 4
+                
+                if shouldLog {
+                    logger.debug("🔍 Fetch[ARM]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%08X", self.pipeline[0]))")
+                }
             } else {
                 pipeline[0] = UInt32(memory.read16(address: fetchAddress))
                 registers[15] += 2
+                
+                if shouldLog {
+                    logger.debug("🔍 Fetch[Thumb]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%04X", self.pipeline[0]))")
+                }
             }
             
             pipelineValid[0] = true
@@ -208,16 +250,6 @@ final class GBAARM7TDMI {
     // MARK: - Helper Methods (Simplified Wrappers)
     // Full implementations are in ARMHelpers.swift
     
-    private func rotateRight(_ value: UInt32, by amount: Int) -> UInt32 {
-        guard amount > 0 else { return value }
-        let effectiveAmount = amount % 32
-        return (value >> effectiveAmount) | (value << (32 - effectiveAmount))
-    }
-    
-    private func applyShift(_ value: UInt32, type: Int, amount: Int) -> UInt32 {
-        return applyShift(value: value, shiftType: UInt32(type), amount: UInt32(amount), updateCarry: false)
-    }
-    
     private func getMemoryAccessCycles(address: UInt32) -> Int {
         // Simplified memory timing
         // Real GBA has different timings for different memory regions
@@ -235,43 +267,30 @@ final class GBAARM7TDMI {
         }
     }
     
-    // Made internal so Thumb extensions can access it
-    func updateFlags(result: UInt32, operation: Int) {
-        // Update N flag (bit 31)
-        if result & 0x80000000 != 0 {
-            cpsr |= 0x80000000
-        } else {
-            cpsr &= ~0x80000000
-        }
-        
-        // Update Z flag (bit 30)
-        if result == 0 {
-            cpsr |= 0x40000000
-        } else {
-            cpsr &= ~0x40000000
-        }
-        
-        // C and V flags are operation-dependent and would be set during arithmetic operations
-    }
-    
     // MARK: - Interrupt Handling
     
     private func handleInterrupt(_ interrupt: GBAInterrupt) -> Int {
-    
-    // MARK: - Interrupt Handling
-        logger.debug("Handling interrupt: \(interrupt)")
+        logger.debug("Handling interrupt: \(String(describing: interrupt))")
         
         // Save current mode and switch to IRQ mode
         savedPSR[.irq] = cpsr
-        cpsr = (cpsr & 0xFFFFFF00) | 0x12 // IRQ mode, disable IRQ
+        cpsr = (cpsr & 0xFFFFFF00) | 0x92 // IRQ mode, disable IRQ, ARM state
+        instructionSet = .arm
         
-        // Save return address
-        registers[14] = registers[15] - 4
+        // Save return address (current PC + adjustment)
+        if instructionSet == .arm {
+            registers[14] = registers[15] - 4
+        } else {
+            registers[14] = registers[15] - 2
+        }
         
         // Jump to IRQ vector
         registers[15] = 0x00000018
         
-        flushPipeline()
+        // Flush pipeline
+        self.pipeline = [UInt32](repeating: 0, count: 3)
+        self.pipelineValid = [Bool](repeating: false, count: 3)
+        
         return 3
     }
     
