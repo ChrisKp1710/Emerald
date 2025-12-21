@@ -16,6 +16,11 @@ extension GBAARM7TDMI {
     
     @inlinable
     internal func executeThumbInstruction(_ instruction: UInt16) -> Int {
+        // Log first 50 Thumb executions
+        if self.instructionCount < 50 {
+            logger.debug("🎯 Execute[Thumb]: Instr=0x\(String(format: "%04X", instruction)), PC=0x\(String(format: "%08X", self.registers[15])), Count=\(self.instructionCount)")
+        }
+        
         // Decode based on bits [15:13] for major categories
         let majorOpcode = (instruction >> 13) & 0x7
         

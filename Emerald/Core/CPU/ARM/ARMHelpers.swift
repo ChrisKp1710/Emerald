@@ -153,14 +153,12 @@ extension GBAARM7TDMI {
     
     internal func flushPipeline() {
         // ARM7TDMI has a 3-stage pipeline
-        // When PC is modified, we need to flush and refill
-        if cpsr & 0x20 != 0 {
-            // Thumb mode: instructions are 2 bytes
-            registers[15] = registers[15] + 4
-        } else {
-            // ARM mode: instructions are 4 bytes
-            registers[15] = registers[15] + 8
-        }
+        // When PC is modified by a branch, we invalidate all stages
+        // The PC has already been set to the target address by the branch instruction
+        // The fetch stage will refill the pipeline starting from the new PC
+        
+        // Invalidate all pipeline stages
+        pipelineValid = [false, false, false]
     }
     
     // MARK: - Mode Switching

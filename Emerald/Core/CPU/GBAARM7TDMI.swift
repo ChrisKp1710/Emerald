@@ -84,13 +84,13 @@ final class GBAARM7TDMI {
     // MARK: - Pipeline
     
     /// 3-stage pipeline: Fetch, Decode, Execute
-    private var pipeline = [UInt32](repeating: 0, count: 3)
-    private var pipelineValid = [Bool](repeating: false, count: 3)
+    internal var pipeline = [UInt32](repeating: 0, count: 3)
+    internal var pipelineValid = [Bool](repeating: false, count: 3)
     
     // MARK: - Performance Counters
     
     private var cycleCount: UInt64 = 0
-    private var instructionCount: UInt64 = 0
+    internal var instructionCount: UInt64 = 0
     
     // MARK: - Initialization
     
@@ -223,9 +223,9 @@ final class GBAARM7TDMI {
                 pipeline[0] = UInt32(memory.read16(address: fetchAddress))
                 registers[15] += 2
                 
-                // Log first 20 Thumb instructions to debug
-                if shouldLog && instructionCount < 20 {
-                    logger.debug("🔍 Fetch[Thumb]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%04X", self.pipeline[0]))")
+                // ALWAYS log first 50 Thumb fetches to debug
+                if self.instructionCount < 50 {
+                    logger.debug("🔍 Fetch[Thumb]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%04X", self.pipeline[0])), Count=\(self.instructionCount)")
                 }
             }
             
