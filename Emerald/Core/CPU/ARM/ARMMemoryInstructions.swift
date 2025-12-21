@@ -268,12 +268,7 @@ extension GBAARM7TDMI {
             }
         }
         
-        // DEBUG: Log PC-relative loads in the problematic region
-        let pcValue = self.registers[15]
-        let isInLoopRegion = (pcValue >= 0x08000214 && pcValue <= 0x08000250)
-        if rn == 15 && l && isInLoopRegion {
-            self.logger.debug("🔍 LDR from PC: baseReg[15]=0x\(String(format: "%08X", self.registers[15])), offset=0x\(String(format: "%X", offset)), finalAddr=0x\(String(format: "%08X", address)), Rd=R\(rd)")
-        }
+        // PC-relative load logging disabled for performance (already verified working)
         
         // Perform load/store
         guard let memory = memory else { return cycles }
@@ -287,9 +282,7 @@ extension GBAARM7TDMI {
             }
             
             // DEBUG: Log value loaded in loop region
-            if rn == 15 && isInLoopRegion {
-                self.logger.debug("🔍 LDR result: R\(rd) = 0x\(String(format: "%08X", self.registers[rd]))")
-            }
+            // LDR result logging disabled for performance
             
             cycles += getMemoryAccessCycles(address: address)
             

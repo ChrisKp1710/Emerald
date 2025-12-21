@@ -18,16 +18,12 @@ extension GBAARM7TDMI {
             let rm = Int(instruction & 0xF)
             let address = registers[rm]
             
-            // DEBUG: Log BX in loop region
-            let pcValue = registers[15]
-            if pcValue >= 0x08000214 && pcValue <= 0x08000250 {
-                logger.debug("🔍 BX R\(rm): target=0x\(String(format: "%08X", address)), bit0=\(address & 1)")
-            }
+            // BX instruction logging disabled for performance (already verified working)
             
             if address & 1 != 0 {
                 cpsr |= 0x20
                 instructionSet = .thumb
-                logger.debug("🔍 BX: Switched to Thumb mode, PC will be 0x\(String(format: "%08X", address & 0xFFFFFFFE))")
+                // logger.debug("BX: Switched to Thumb mode")
             }
             
             registers[15] = address & 0xFFFFFFFE

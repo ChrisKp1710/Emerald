@@ -399,20 +399,10 @@ final class EmulatorState: ObservableObject {
             logger.warning("⚠️ Safety limit hit: \(instructionsExecuted) instructions")
         }
         
-        // Debug: Log frame summary for first few frames
-        if shouldLogDetail {
-            logger.info("📊 Frame \(self.frameCount + 1) complete: \(instructionsExecuted) instructions, \(cyclesExecuted) cycles")
-        }
-        
         // Transfer framebuffer to renderer
         if let framebuffer = ppu?.framebuffer {
             // Call the callback to update screen (doesn't block main thread)
             frameUpdateCallback?(framebuffer)
-
-            // Debug: Log first frame rendering
-            if self.frameCount == 0 {
-                logger.debug("🖼️ First frame rendered successfully")
-            }
         }
         
         // Update frame counter - log only every 300 frames (5 seconds)

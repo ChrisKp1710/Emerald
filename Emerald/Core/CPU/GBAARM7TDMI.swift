@@ -207,18 +207,19 @@ final class GBAARM7TDMI {
                 pipeline[0] = memory.read32(address: fetchAddress)
                 registers[15] += 4
                 
-                // Special logging for the problematic loop region
-                let isInLoopRegion = fetchAddress >= 0x08000214 && fetchAddress <= 0x08000238
+                // Special logging for the problematic loop region (DISABLED FOR PERFORMANCE)
+                // let isInLoopRegion = fetchAddress >= 0x08000214 && fetchAddress <= 0x08000238
                 
-                // Log first 10 instructions normally, then ALWAYS log loop region
+                // Log first 10 instructions for initial debugging only
                 if shouldLog && instructionCount < 10 {
                     logger.debug("🔍 Fetch[ARM]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%08X", self.pipeline[0]))")
                 } else if instructionCount == 10 {
                     logger.info("🔍 Initial logging stopped after 10 instructions - switching to loop-only logging")
-                } else if isInLoopRegion {
-                    // ALWAYS log loop region with full details
-                    logger.debug("🔍 [Loop] PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%08X", self.pipeline[0])) | R0=0x\(String(format: "%08X", self.registers[0])), R1=0x\(String(format: "%08X", self.registers[1])), LR=0x\(String(format: "%08X", self.registers[14]))")
                 }
+                // Loop region logging disabled for performance
+                // else if isInLoopRegion {
+                //     logger.debug("🔍 [Loop] PC=...")
+                // }
             } else {
                 pipeline[0] = UInt32(memory.read16(address: fetchAddress))
                 registers[15] += 2

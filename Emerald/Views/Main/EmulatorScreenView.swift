@@ -13,9 +13,8 @@ struct EmulatorScreenView: View {
     @State private var metalRenderer: EmulatorMetalRenderer?
 
     var body: some View {
-        let _ = print("🎨 DEBUG: EmulatorScreenView body is being rendered")
+        // UI logging disabled for performance
         GeometryReader { geometry in
-            let _ = print("🎨 DEBUG: GeometryReader size: \(geometry.size)")
             MetalView(metalRenderer: $metalRenderer, emulatorState: emulatorState)
                 .aspectRatio(240.0 / 160.0, contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -30,7 +29,7 @@ struct MetalView: NSViewRepresentable {
     let emulatorState: EmulatorState
 
     func makeNSView(context: Context) -> MTKView {
-        print("🎨 DEBUG: makeNSView called - Creating MTKView")
+        // View creation logging disabled for performance
         let metalView = MTKView()
 
         // Setup Metal device
@@ -50,16 +49,7 @@ struct MetalView: NSViewRepresentable {
         metalView.delegate = renderer
 
         // Set up callback to update framebuffer from emulator
-        var frameCount = 0
         emulatorState.setFrameUpdateCallback { [weak renderer] framebuffer in
-            frameCount += 1
-
-            // Debug: Log first few frames
-            if frameCount <= 3 {
-                let firstPixels = Array(framebuffer.prefix(5))
-                print("🖼️ Frame \(frameCount) callback - First 5 pixels: \(firstPixels.map { String(format: "0x%08X", $0) })")
-            }
-
             // Copy framebuffer data and dispatch to main thread asynchronously
             // This prevents blocking the emulation thread
             let frameData = Data(bytes: framebuffer, count: framebuffer.count * MemoryLayout<UInt32>.stride)

@@ -195,18 +195,7 @@ final class GBAMemoryManager {
     
     func write32(address: UInt32, value: UInt32) {
         let alignedAddress = address & ~3
-        // Log first 10 writes only to avoid spam
-        if alignedAddress >= 0x03000000 && alignedAddress < 0x04000000 {
-            if self.writeLogCount < 10 {
-                let addrStr = String(format: "%08X", alignedAddress)
-                let valStr = String(format: "%08X", value)
-                logger.debug("📝 Write32 #\(self.writeLogCount + 1): addr=0x\(addrStr), value=0x\(valStr)")
-                self.writeLogCount += 1
-            } else if self.writeLogCount == 10 {
-                logger.info("📝 Write32 logging stopped after 10 entries to reduce spam")
-                self.writeLogCount += 1
-            }
-        }
+        // Write32 logging disabled for performance (already verified working)
         write16(address: alignedAddress, value: UInt16(value & 0xFFFF))
         write16(address: alignedAddress + 2, value: UInt16((value >> 16) & 0xFFFF))
     }

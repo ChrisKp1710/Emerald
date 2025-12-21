@@ -21,19 +21,17 @@ struct MainEmulatorView: View {
     
     var body: some View {
         let showEmulator = emulatorState.currentROM != nil
-        let _ = print("🔄 DEBUG: body re-evaluated - showEmulator: \(showEmulator), ROM: \(emulatorState.currentROM?.title ?? "nil")")
+        // UI logging disabled for performance
         
         return VStack(spacing: 0) {
             if showEmulator {
                 // Modalità emulatore
-                let _ = print("🎮 DEBUG: Showing emulator view for ROM: \(emulatorState.currentROM!.title)")
                 emulatorToolbar
                 Divider()
                 emulatorView
                     .id("emulator-\(emulatorState.currentROM!.id.uuidString)")
             } else {
                 // Modalità libreria unificata
-                let _ = print("📚 DEBUG: Showing library view (currentROM is nil)")
                 libraryToolbar
                 Divider()
                 unifiedLibraryView
