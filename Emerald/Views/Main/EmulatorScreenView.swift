@@ -49,7 +49,7 @@ struct MetalView: NSViewRepresentable {
         let renderer = EmulatorMetalRenderer(device: device, view: metalView)
         metalView.delegate = renderer
 
-        // Set up callback to update framebuffer from emulator IMMEDIATELY
+        // Set up callback to update framebuffer from emulator
         var frameCount = 0
         emulatorState.setFrameUpdateCallback { [weak renderer] framebuffer in
             frameCount += 1
@@ -60,13 +60,12 @@ struct MetalView: NSViewRepresentable {
                 print("🖼️ Frame \(frameCount) callback - First 5 pixels: \(firstPixels.map { String(format: "0x%08X", $0) })")
             }
 
-            // Use withUnsafeBytes to avoid copying the entire array
-            framebuffer.withUnsafeBytes { bufferPointer in
-                guard let baseAddress = bufferPointer.baseAddress else { return }
-                let data = Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: baseAddress),
-                              count: framebuffer.count * MemoryLayout<UInt32>.stride,
-                              deallocator: .none)
-                renderer?.updateFramebuffer(data)
+            // Copy framebuffer data and dispatch to main thread asynchronously
+            // This prevents blocking the emulation thread
+            let frameData = Data(bytes: framebuffer, count: framebuffer.count * MemoryLayout<UInt32>.stride)
+            
+            DispatchQueue.main.async {
+                renderer?.updateFramebuffer(frameData)
             }
         }
 
