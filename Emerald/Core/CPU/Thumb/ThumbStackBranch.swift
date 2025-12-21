@@ -138,12 +138,12 @@ extension GBAARM7TDMI {
         
         let conditionMet = checkCondition(condition)
         
-        // Debug logging for first 50 branches
-        if instructionCount < 50 {
-            let offset = Int32(soffset8) << 1
-            let pc = registers[15]
-            logger.debug("🔀 Branch: cond=\(condition), offset=\(offset), PC=0x\(String(format: "%08X", pc)), taken=\(conditionMet), target=0x\(String(format: "%08X", UInt32(Int32(pc) + offset)))")
-        }
+        // Disabled logging for performance
+        // if instructionCount < 50 {
+        //     let offset = Int32(soffset8) << 1
+        //     let pc = registers[15]
+        //     logger.debug("🔀 Branch: cond=\(condition), offset=\(offset), PC=0x\(String(format: "%08X", pc)), taken=\(conditionMet), target=0x\(String(format: "%08X", UInt32(Int32(pc) + offset)))")
+        // }
         
         if conditionMet {
             let offset = Int32(soffset8) << 1

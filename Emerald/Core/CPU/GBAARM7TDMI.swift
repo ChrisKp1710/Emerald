@@ -223,10 +223,10 @@ final class GBAARM7TDMI {
                 pipeline[0] = UInt32(memory.read16(address: fetchAddress))
                 registers[15] += 2
                 
-                // ALWAYS log first 50 Thumb fetches to debug
-                if self.instructionCount < 50 {
-                    logger.debug("🔍 Fetch[Thumb]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%04X", self.pipeline[0])), Count=\(self.instructionCount)")
-                }
+                // Disabled logging for performance (already verified working)
+                // if self.instructionCount < 50 {
+                //     logger.debug("🔍 Fetch[Thumb]: PC=0x\(String(format: "%08X", fetchAddress)), Instr=0x\(String(format: "%04X", self.pipeline[0])), Count=\(self.instructionCount)")
+                // }
             }
             
             pipelineValid[0] = true
